@@ -285,6 +285,7 @@
     $('#inbound-host').value = '';
     $('#inbound-dest').value = '';
     $('#inbound-address').value = '';
+    $('#inbound-address-port').value = '443';
     $('#inbound-reality-fields').classList.add('hidden');
     $('#add-inbound-modal').classList.remove('hidden');
   };
@@ -326,12 +327,13 @@
     const host = $('#inbound-host').value.trim();
     const dest = $('#inbound-dest').value.trim();
     const address = $('#inbound-address').value.trim();
+    const address_port = parseInt($('#inbound-address-port').value) || 443;
 
     try {
       showLoading();
       await api('/api/inbounds', {
         method: 'POST',
-        body: { protocol, network_type, remark, port, host, dest, address }
+        body: { protocol, network_type, remark, port, host, dest, address, address_port }
       });
       hideLoading();
       closeAddInboundModal();

@@ -22,7 +22,7 @@ function buildClientLinks(client) {
   const panelDomain = stmts.getSetting.get('panel_domain')?.value || '';
   // For Reality: use per-inbound address if set, otherwise fallback to global
   const tcpDomain = client.inbound_address || stmts.getSetting.get('tcp_domain')?.value || panelDomain || 'localhost';
-  const tcpPort = parseInt(stmts.getSetting.get('tcp_port')?.value || '443', 10);
+  const tcpPort = client.inbound_address_port || parseInt(stmts.getSetting.get('tcp_port')?.value || '443', 10);
 
   const identifier = client.protocol === 'vless' ? client.uuid : client.password;
   const protocol = client.protocol === 'vless' ? 'vless' : 'trojan';
@@ -191,7 +191,7 @@ router.post('/api/logout', (req, res) => {
 router.get('/sub/:token', (req, res) => {
   try {
     const client = db.prepare(
-      'SELECT c.*, i.protocol, i.network_type, i.port as inbound_port, i.host, i.dest, i.address as inbound_address FROM clients c JOIN inbounds i ON c.inbound_id = i.id WHERE c.sub_token = ? AND c.enabled = 1'
+      'SELECT c.*, i.protocol, i.network_type, i.port as inbound_port, i.host, i.dest, i.address as inbound_address, i.address_port as inbound_address_port FROM clients c JOIN inbounds i ON c.inbound_id = i.id WHERE c.sub_token = ? AND c.enabled = 1'
     ).get(req.params.token);
     if (!client) return res.status(404).send('Not found');
 
@@ -341,7 +341,7 @@ router.get('/api/inbounds', (req, res) => {
 
 router.post('/api/inbounds', (req, res) => {
   try {
-    const { protocol, network_type, remark, port, host, dest, address } = req.body;
+    const { protocol, network_type, remark, port, host, dest, address, address_port } = req.body;
     if (!protocol || !network_type) {
       return res.status(400).json({ error: 'protocol and network_type required' });
     }
@@ -361,7 +361,8 @@ router.post('/api/inbounds', (req, res) => {
       port || 0,
       host || '',
       dest || '',
-      address || ''
+      address || '',
+      address_port || 443
     );
 
     const inbound = stmts.getInboundById.get(result.lastInsertRowid);
@@ -375,7 +376,7 @@ router.post('/api/inbounds', (req, res) => {
 router.put('/api/inbounds/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const { remark, enabled, port, host, dest, address } = req.body;
+    const { remark, enabled, port, host, dest, address, address_port } = req.body;
     const inbound = stmts.getInboundById.get(id);
     if (!inbound) {
       return res.status(404).json({ error: 'Inbound not found' });
@@ -388,6 +389,7 @@ router.put('/api/inbounds/:id', (req, res) => {
       host !== undefined ? host : (inbound.host || ''),
       dest !== undefined ? dest : (inbound.dest || ''),
       address !== undefined ? address : (inbound.address || ''),
+      address_port !== undefined ? address_port : (inbound.address_port || 443),
       id
     );
 
