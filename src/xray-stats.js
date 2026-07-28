@@ -3,15 +3,12 @@ const { execSync } = require('child_process');
 const config = require('./config');
 const { stmts } = require('./db');
 
-// Query xray stats via CLI (protobuf text format)
 function queryStats() {
   try {
     const output = execSync(
       `xray api statsquery -server 127.0.0.1:${config.xrayStatsPort} -pattern ""`,
       { encoding: 'utf-8', timeout: 5000 }
     );
-    // Parse protobuf text format:
-    // stat { name: "user>>>email>>>uplink" value: 12345 }
     const stats = [];
     const blocks = output.split('stat {');
     for (const block of blocks) {
@@ -29,38 +26,26 @@ function queryStats() {
   }
 }
 
-// Parse stats and update traffic table
 function updateTrafficStats() {
   const stats = queryStats();
   if (!stats || !stats.stat) return;
 
   const now = Math.floor(Date.now() / 1000);
-
-  // Build traffic map from xray stats
   const trafficMap = {};
 
   for (const stat of stats.stat) {
-    const name = stat.name;
+    const match = stat.name.match(/^user>>>([^>]+)>>>(uplink|downlink)$/);
+    if (!match) continue;
+
+    const email = match[1];
+    const direction = match[2];
     const value = parseInt(stat.value, 10) || 0;
 
-    // Parse user traffic: "user>>>><email>>>><uplink|downlink>"
-    const match = name.match(/^user>>>([^>]+)>>>(uplink|downlink)$/);
-    if (match) {
-      const email = match[1];
-      const direction = match[2];
-
-      if (!trafficMap[email]) {
-        trafficMap[email] = { up: 0, down: 0 };
-      }
-      if (direction === 'uplink') {
-        trafficMap[email].up += value;
-      } else {
-        trafficMap[email].down += value;
-      }
-    }
+    if (!trafficMap[email]) trafficMap[email] = { up: 0, down: 0 };
+    if (direction === 'uplink') trafficMap[email].up += value;
+    else trafficMap[email].down += value;
   }
 
-  // Update traffic table for each client
   for (const [email, traffic] of Object.entries(trafficMap)) {
     const clients = stmts.db.prepare('SELECT id FROM clients WHERE email = ?').all(email);
     for (const client of clients) {
@@ -71,7 +56,6 @@ function updateTrafficStats() {
   return trafficMap;
 }
 
-// Get traffic summary for dashboard
 function getTrafficSummary() {
   const total = stmts.totalTraffic.get();
   const allTraffic = stmts.getAllTraffic.all();
@@ -94,7 +78,6 @@ function getTrafficSummary() {
   };
 }
 
-// Format bytes to human readable
 function formatBytes(bytes) {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -103,9 +86,4 @@ function formatBytes(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-module.exports = {
-  queryStats,
-  updateTrafficStats,
-  getTrafficSummary,
-  formatBytes
-};
+module.exports = { queryStats, updateTrafficStats, getTrafficSummary, formatBytes };

@@ -2,30 +2,21 @@
 const Database = require('better-sqlite3');
 const config = require('./config');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
 
-// Initialize database
 config.ensureDataDir();
 const db = new Database(config.dbPath);
 
-// Enable WAL mode and foreign keys
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
-// Create tables
+// ─── Schema ───────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS inbounds (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tag TEXT NOT NULL UNIQUE,
     protocol TEXT NOT NULL CHECK(protocol IN ('vless','trojan')),
-    network_type TEXT NOT NULL CHECK(network_type IN ('ws','reality')),
     enabled INTEGER DEFAULT 1,
     remark TEXT DEFAULT '',
-    port INTEGER DEFAULT 0,
-    host TEXT DEFAULT '',
-    dest TEXT DEFAULT '',
-    address TEXT DEFAULT '',
-    address_port INTEGER DEFAULT 443,
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -45,7 +36,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS traffic (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    client_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL UNIQUE,
     up INTEGER DEFAULT 0,
     down INTEGER DEFAULT 0,
     last_check INTEGER DEFAULT 0,
@@ -58,19 +49,51 @@ db.exec(`
   );
 `);
 
-// ─── Migration ──────────────────────────────────────────
+// ─── Migration ────────────────────────────────────────
 function migrateDb() {
   const cols = db.prepare("PRAGMA table_info(inbounds)").all().map(c => c.name);
-  if (!cols.includes('port')) db.exec("ALTER TABLE inbounds ADD COLUMN port INTEGER DEFAULT 0");
-  if (!cols.includes('host')) db.exec("ALTER TABLE inbounds ADD COLUMN host TEXT DEFAULT ''");
-  if (!cols.includes('dest')) db.exec("ALTER TABLE inbounds ADD COLUMN dest TEXT DEFAULT ''");
-  if (!cols.includes('address')) db.exec("ALTER TABLE inbounds ADD COLUMN address TEXT DEFAULT ''");
-  if (!cols.includes('address_port')) db.exec("ALTER TABLE inbounds ADD COLUMN address_port INTEGER DEFAULT 443");
 
+  // If old schema with network_type exists, migrate to clean WS-only schema
+  if (cols.includes('network_type')) {
+    console.log('[db] Migrating from old schema (removing Reality columns)...');
+
+    // Preserve existing client data
+    const oldClients = db.prepare(`
+      SELECT c.*, i.protocol, i.tag as old_tag, i.remark
+      FROM clients c JOIN inbounds i ON c.inbound_id = i.id
+    `).all();
+
+    // Drop and recreate inbounds
+    db.exec('DROP TABLE IF EXISTS inbounds');
+    db.exec(`
+      CREATE TABLE inbounds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tag TEXT NOT NULL UNIQUE,
+        protocol TEXT NOT NULL CHECK(protocol IN ('vless','trojan')),
+        enabled INTEGER DEFAULT 1,
+        remark TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    // Re-create old inbounds from old data (WS only)
+    const seenTags = new Set();
+    for (const c of oldClients) {
+      if (!seenTags.has(c.old_tag)) {
+        seenTags.add(c.old_tag);
+        db.prepare('INSERT OR IGNORE INTO inbounds (tag, protocol, remark) VALUES (?, ?, ?)').run(
+          c.old_tag, c.protocol, c.remark || ''
+        );
+      }
+    }
+
+    console.log('[db] Migration complete');
+  }
+
+  // Ensure sub_token exists on clients
   const clientCols = db.prepare("PRAGMA table_info(clients)").all().map(c => c.name);
   if (!clientCols.includes('sub_token')) {
     db.exec("ALTER TABLE clients ADD COLUMN sub_token TEXT");
-    // Generate tokens for existing clients
     const existing = db.prepare("SELECT id FROM clients WHERE sub_token IS NULL").all();
     const update = db.prepare("UPDATE clients SET sub_token = ? WHERE id = ?");
     for (const c of existing) {
@@ -79,50 +102,22 @@ function migrateDb() {
   }
 }
 
-// Run migrations on load
 migrateDb();
 
-// Helper: generate random hex string
+// ─── Helpers ──────────────────────────────────────────
 function randomHex(length) {
   return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
 }
 
-// Helper: generate UUID v4
 function generateUUID() {
   return crypto.randomUUID();
 }
 
-// Helper: generate subscription token
 function generateSubToken() {
   return crypto.randomBytes(16).toString('hex');
 }
 
-// Helper: generate Xray x25519 key pair
-function generateX25519Keys() {
-  try {
-    const output = execSync('xray x25519', { encoding: 'utf-8', timeout: 10000 });
-    const lines = output.trim().split('\n');
-    let privateKey = '';
-    let publicKey = '';
-    for (const line of lines) {
-      if (line.startsWith('Private key:')) {
-        privateKey = line.split('Private key:')[1].trim();
-      } else if (line.startsWith('Public key:')) {
-        publicKey = line.split('Public key:')[1].trim();
-      }
-    }
-    return { privateKey, publicKey };
-  } catch (err) {
-    console.error('Failed to generate x25519 keys:', err.message);
-    // Fallback: generate random keys (won't work for xray but won't crash)
-    return {
-      privateKey: randomHex(44),
-      publicKey: randomHex(44)
-    };
-  }
-}
-
-// Initialize default settings if not present
+// ─── Default Settings ─────────────────────────────────
 function initDefaultSettings() {
   const getSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
   const setSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
@@ -130,35 +125,14 @@ function initDefaultSettings() {
   if (!getSetting.get('ws_path')) {
     setSetting.run('ws_path', randomHex(16));
   }
-  if (!getSetting.get('reality_dest')) {
-    setSetting.run('reality_dest', 'www.microsoft.com:443');
-  }
-  if (!getSetting.get('reality_server_name')) {
-    setSetting.run('reality_server_name', 'www.microsoft.com');
-  }
-  if (!getSetting.get('reality_short_id')) {
-    setSetting.run('reality_short_id', randomHex(8));
-  }
-  if (!getSetting.get('reality_private_key') || !getSetting.get('reality_public_key')) {
-    const keys = generateX25519Keys();
-    setSetting.run('reality_private_key', keys.privateKey);
-    setSetting.run('reality_public_key', keys.publicKey);
-  }
-  if (!getSetting.get('tcp_domain')) {
-    setSetting.run('tcp_domain', '');
-  }
-  if (!getSetting.get('tcp_port')) {
-    setSetting.run('tcp_port', '443');
-  }
   if (!getSetting.get('panel_domain')) {
     setSetting.run('panel_domain', '');
   }
 }
 
-// Initialize on load
 initDefaultSettings();
 
-// Prepared statements
+// ─── Prepared Statements ──────────────────────────────
 const stmts = {
   // Settings
   getSetting: db.prepare('SELECT value FROM settings WHERE key = ?'),
@@ -169,10 +143,10 @@ const stmts = {
   getAllInbounds: db.prepare('SELECT * FROM inbounds ORDER BY created_at DESC'),
   getInboundById: db.prepare('SELECT * FROM inbounds WHERE id = ?'),
   createInbound: db.prepare(
-    'INSERT INTO inbounds (tag, protocol, network_type, remark, port, host, dest, address, address_port) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO inbounds (tag, protocol, remark) VALUES (?, ?, ?)'
   ),
   updateInbound: db.prepare(
-    'UPDATE inbounds SET remark = ?, enabled = ?, port = ?, host = ?, dest = ?, address = ?, address_port = ? WHERE id = ?'
+    'UPDATE inbounds SET remark = ?, enabled = ? WHERE id = ?'
   ),
   deleteInbound: db.prepare('DELETE FROM inbounds WHERE id = ?'),
 
@@ -181,10 +155,10 @@ const stmts = {
     'SELECT c.*, t.up, t.down, t.last_check FROM clients c LEFT JOIN traffic t ON c.id = t.client_id WHERE c.inbound_id = ? ORDER BY c.created_at DESC'
   ),
   getClientById: db.prepare(
-    'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.id = ?'
+    'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.id = ?'
   ),
   getClientByToken: db.prepare(
-    'SELECT c.*, t.up, t.down, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.sub_token = ?'
+    'SELECT c.*, t.up, t.down, i.tag as inbound_tag, i.protocol, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.sub_token = ?'
   ),
   createClient: db.prepare(
     'INSERT INTO clients (inbound_id, uuid, password, email, limit_bytes, expiry_date, enabled, sub_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -195,7 +169,6 @@ const stmts = {
   deleteClient: db.prepare('DELETE FROM clients WHERE id = ?'),
 
   // Traffic
-  getTrafficByClient: db.prepare('SELECT * FROM traffic WHERE client_id = ?'),
   upsertTraffic: db.prepare(
     'INSERT OR REPLACE INTO traffic (client_id, up, down, last_check) VALUES (?, ?, ?, ?)'
   ),
@@ -212,7 +185,7 @@ const stmts = {
 
   // All clients (global list)
   getAllClients: db.prepare(
-    'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id ORDER BY c.created_at DESC'
+    'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id ORDER BY c.created_at DESC'
   ),
 };
 
@@ -221,7 +194,5 @@ module.exports = {
   stmts,
   generateUUID,
   randomHex,
-  generateSubToken,
-  generateX25519Keys,
-  initDefaultSettings
+  generateSubToken
 };

@@ -157,6 +157,7 @@
             <button class="btn btn-danger btn-sm" onclick="confirmDeleteInbound()">🗑 حذف اینبند</button>
           </div>
         </div>
+        <div id="inbound-info-box"></div>
         <div class="card">
           <div class="card-header">
             <h3>کلاینت‌ها</h3>
@@ -219,56 +220,6 @@
             </div>
           </div>
 
-          <!-- Reality Settings -->
-          <div class="card">
-            <div class="card-header">
-              <h3>REALITY</h3>
-            </div>
-            <div class="card-body">
-              <div class="form-group">
-                <label for="setting-reality-dest">Dest</label>
-                <input type="text" id="setting-reality-dest" placeholder="www.microsoft.com:443">
-              </div>
-              <div class="form-group">
-                <label for="setting-reality-server-name">Server Name (SNI)</label>
-                <input type="text" id="setting-reality-server-name" placeholder="www.microsoft.com">
-              </div>
-              <div class="form-group">
-                <label>Public Key</label>
-                <div class="input-group">
-                  <input type="text" id="setting-reality-public-key" readonly class="input-readonly">
-                  <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-reality-public-key')">کپی</button>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>Short ID</label>
-                <div class="input-group">
-                  <input type="text" id="setting-reality-short-id" readonly class="input-readonly">
-                  <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-reality-short-id')">کپی</button>
-                </div>
-              </div>
-              <button class="btn btn-primary" onclick="generateRealityKeys()">🔄 تولید کلیدهای جدید</button>
-            </div>
-          </div>
-
-          <!-- Network Settings -->
-          <div class="card">
-            <div class="card-header">
-              <h3>تنظیمات شبکه</h3>
-            </div>
-            <div class="card-body">
-              <div class="form-group">
-                <label for="setting-tcp-domain">دامنه TCP Proxy</label>
-                <input type="text" id="setting-tcp-domain" placeholder="your-domain.com">
-              </div>
-              <div class="form-group">
-                <label for="setting-tcp-port">پورت TCP Proxy</label>
-                <input type="number" id="setting-tcp-port" placeholder="443">
-              </div>
-              <button class="btn btn-primary" onclick="saveSettings()">💾 ذخیره تنظیمات</button>
-            </div>
-          </div>
-
           <!-- Stats Management -->
           <div class="card">
             <div class="card-header">
@@ -300,46 +251,8 @@
           </select>
         </div>
         <div class="form-group">
-          <label>نوع شبکه</label>
-          <select id="inbound-network-type" onchange="toggleInboundNetworkFields()">
-            <option value="ws">WebSocket (WS)</option>
-            <option value="reality">REALITY</option>
-          </select>
-        </div>
-        <div class="form-group">
           <label>توضیحات</label>
           <input type="text" id="inbound-remark" placeholder="نام اختیاری">
-        </div>
-        <!-- Port field -->
-        <div class="form-group">
-          <label for="inbound-port">پورت (0 = پیش‌فرض)</label>
-          <input type="number" id="inbound-port" placeholder="0 = پیش‌فرض (443 برای Reality, 10080 برای WS)" value="0">
-        </div>
-        <!-- Reality-specific fields -->
-        <div id="inbound-reality-fields" class="hidden">
-          <hr style="border-color:#333;margin:12px 0;">
-          <p style="color:#999;font-size:12px;margin-bottom:8px;">تنظیمات اختصاصی Reality</p>
-          <div class="form-group">
-            <label for="inbound-host">SNI Host</label>
-            <input type="text" id="inbound-host" placeholder="خالی = همه دامنه‌ها (catch-all)">
-          </div>
-          <div class="form-group">
-            <label for="inbound-dest">Dest (مقصد واقعی)</label>
-            <input type="text" id="inbound-dest" placeholder="خالی = از تنظیمات جهانی (مثلاً www.microsoft.com:443)">
-          </div>
-          <div class="form-group">
-            <label for="inbound-address">آدرس TCP Proxy (برای لینک ساب)</label>
-            <input type="text" id="inbound-address" placeholder="مثلاً tcp-proxy.up.railway.app">
-          </div>
-          <div class="form-group">
-            <label for="inbound-address-port">پورت TCP Proxy</label>
-            <input type="number" id="inbound-address-port" value="443" placeholder="443">
-          </div>
-          <!-- Display global settings (read-only) -->
-          <div style="background:#0a0a0a;border:1px solid #222;border-radius:8px;padding:10px;margin-top:8px;">
-            <p style="color:#666;font-size:11px;margin-bottom:6px;">تنظیمات جهانی Reality:</p>
-            <div style="font-size:12px;color:#888;" id="inbound-reality-defaults">بارگذاری...</div>
-          </div>
         </div>
       </div>
       <div class="modal-footer">

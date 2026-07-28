@@ -10,7 +10,7 @@ const routes = require('./src/routes');
 const app = express();
 const server = http.createServer(app);
 
-// ─── Middleware ────────────────────────────────────────────
+// ─── Middleware ────────────────────────────────────────
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -18,10 +18,10 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(__dirname + '/public'));
 
-// ─── API Routes ───────────────────────────────────────────
+// ─── API Routes ───────────────────────────────────────
 app.use(routes);
 
-// SPA fallback - serve index.html for all non-API routes
+// SPA fallback
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api/')) {
     res.sendFile(__dirname + '/public/index.html');
@@ -30,7 +30,7 @@ app.get('*', (req, res) => {
   }
 });
 
-// ─── WebSocket Proxy ──────────────────────────────────────
+// ─── WebSocket Proxy ──────────────────────────────────
 const wsProxy = httpProxy.createProxyServer({
   target: `http://127.0.0.1:${config.xrayWsPort}`,
   ws: true,
@@ -45,10 +45,10 @@ wsProxy.on('error', (err, req, res) => {
   }
 });
 
-// Handle WebSocket upgrade requests
+// Handle WebSocket upgrade
 server.on('upgrade', (req, socket, head) => {
-  // Only proxy WebSocket requests that match the WS path
-  const wsPath = require('./src/db').stmts.getSetting.get('ws_path')?.value;
+  const { stmts } = require('./src/db');
+  const wsPath = stmts.getSetting.get('ws_path')?.value;
   if (wsPath && req.url.startsWith(`/${wsPath}`)) {
     wsProxy.ws(req, socket, head, { target: `http://127.0.0.1:${config.xrayWsPort}` });
   } else {
@@ -56,9 +56,10 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-// Handle HTTP requests for the WS path (xray WS also handles HTTP upgrades)
+// Handle HTTP requests for WS path (xray WS also handles HTTP upgrades)
 app.use((req, res, next) => {
-  const wsPath = require('./src/db').stmts.getSetting.get('ws_path')?.value;
+  const { stmts } = require('./src/db');
+  const wsPath = stmts.getSetting.get('ws_path')?.value;
   if (wsPath && req.url.startsWith(`/${wsPath}`)) {
     wsProxy.web(req, res);
   } else {
@@ -66,14 +67,11 @@ app.use((req, res, next) => {
   }
 });
 
-// ─── Start Server ─────────────────────────────────────────
+// ─── Start Server ─────────────────────────────────────
 const PORT = config.port;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[limoo] Server running on port ${PORT}`);
-  console.log(`[limoo] Panel: http://0.0.0.0:${PORT}`);
-
-  // Start xray-core
   try {
     startXray();
     console.log('[limoo] Xray-core started');
@@ -87,18 +85,14 @@ process.on('SIGTERM', () => {
   console.log('[limoo] Shutting down...');
   const { stopXray } = require('./src/xray-manager');
   stopXray();
-  server.close(() => {
-    process.exit(0);
-  });
+  server.close(() => process.exit(0));
 });
 
 process.on('SIGINT', () => {
   console.log('[limoo] Interrupted, shutting down...');
   const { stopXray } = require('./src/xray-manager');
   stopXray();
-  server.close(() => {
-    process.exit(0);
-  });
+  server.close(() => process.exit(0));
 });
 
 module.exports = { app, server };
