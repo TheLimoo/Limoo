@@ -2,8 +2,14 @@
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>لیمو | پنل مدیریت پروکسی</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍋</text></svg>">
 </head>
@@ -16,14 +22,14 @@
     <div class="modal">
       <div class="modal-header">
         <h3 id="modal-title">تأیید</h3>
-        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <button class="modal-close" onclick="closeModal()">✕</button>
       </div>
       <div class="modal-body">
         <p id="modal-message"></p>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal()">انصراف</button>
-        <button class="btn btn-danger" id="modal-confirm">تأیید</button>
+        <button class="btn btn-danger btn-ripple" id="modal-confirm">تأیید</button>
       </div>
     </div>
   </div>
@@ -43,10 +49,13 @@
         <form id="login-form" class="login-form">
           <div class="form-group">
             <label for="password">رمز عبور</label>
-            <input type="password" id="password" placeholder="رمز عبور" required autocomplete="current-password" autofocus>
+            <div class="password-group">
+              <input type="password" id="password" placeholder="رمز عبور را وارد کنید" required autocomplete="current-password" autofocus>
+              <button type="button" class="password-toggle" onclick="togglePassword()" aria-label="نمایش رمز">👁</button>
+            </div>
           </div>
-          <button type="submit" class="btn btn-primary btn-block">ورود</button>
-          <p id="login-error" class="error-text hidden"></p>
+          <button type="submit" class="btn-gradient btn-ripple" style="margin-top:8px;">ورود</button>
+          <p id="login-error" class="login-error hidden"></p>
         </form>
       </div>
     </div>
@@ -54,34 +63,42 @@
 
   <!-- Main App -->
   <div id="app-page" class="page hidden">
+    <!-- Mobile Topbar -->
+    <div class="mobile-topbar">
+      <button class="mobile-topbar-toggle" onclick="toggleSidebar()">☰</button>
+      <span class="mobile-topbar-brand">لیمو</span>
+    </div>
+
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-logo">🍋</span>
         <span class="sidebar-brand">لیمو</span>
-        <button class="sidebar-toggle" onclick="toggleSidebar()">&#9776;</button>
       </div>
       <nav class="sidebar-nav">
         <a href="#" class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
-          <span class="nav-icon">📊</span>
+          <span class="nav-icon">⬡</span>
           <span class="nav-text">داشبورد</span>
         </a>
         <a href="#" class="nav-item" data-page="inbounds" onclick="navigateTo('inbounds')">
-          <span class="nav-icon">🔗</span>
+          <span class="nav-icon">⚡</span>
           <span class="nav-text">اینباندها</span>
         </a>
         <a href="#" class="nav-item" data-page="clients" onclick="navigateTo('clients')">
-          <span class="nav-icon">👥</span>
+          <span class="nav-icon">⬡</span>
           <span class="nav-text">کلاینت‌ها</span>
         </a>
         <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('settings')">
-          <span class="nav-icon">⚙️</span>
+          <span class="nav-icon">⚙</span>
           <span class="nav-text">تنظیمات</span>
         </a>
       </nav>
       <div class="sidebar-footer">
-        <button class="btn btn-secondary btn-sm" onclick="logout()">
-          <span>🚪</span> خروج
+        <button class="btn btn-secondary btn-sm btn-ripple" onclick="logout()">
+          <span>⏻</span> خروج
         </button>
       </div>
     </aside>
@@ -94,27 +111,27 @@
           <h2>داشبورد</h2>
           <div class="header-actions">
             <span id="xray-status" class="status-badge status-unknown">...</span>
-            <button class="btn btn-sm btn-secondary" onclick="loadDashboard()">🔄 بروزرسانی</button>
+            <button class="btn btn-sm btn-secondary btn-ripple" onclick="loadDashboard()">↻ بروزرسانی</button>
           </div>
         </div>
         <div class="stats-grid" id="stats-grid">
           <div class="stat-card">
-            <div class="stat-icon">📈</div>
+            <div class="stat-icon">↑</div>
             <div class="stat-value" id="stat-upload">—</div>
             <div class="stat-label">آپلود کل</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">📉</div>
+            <div class="stat-icon">↓</div>
             <div class="stat-value" id="stat-download">—</div>
             <div class="stat-label">دانلود کل</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">🔗</div>
+            <div class="stat-icon">⚡</div>
             <div class="stat-value" id="stat-inbounds">—</div>
             <div class="stat-label">اینباندهای فعال</div>
           </div>
           <div class="stat-card">
-            <div class="stat-icon">👥</div>
+            <div class="stat-icon">⬡</div>
             <div class="stat-value" id="stat-clients">—</div>
             <div class="stat-label">کل کلاینت‌ها</div>
           </div>
@@ -122,7 +139,7 @@
         <div class="card">
           <div class="card-header">
             <h3>اینباندها</h3>
-            <button class="btn btn-primary btn-sm" onclick="showAddInboundModal()">+ ایجاد اینبند</button>
+            <button class="btn btn-primary btn-sm btn-ripple" onclick="showAddInboundModal()">+ ایجاد اینبند</button>
           </div>
           <div id="inbounds-list-dashboard" class="list-container"></div>
         </div>
@@ -132,7 +149,7 @@
       <div id="view-inbounds" class="view hidden">
         <div class="view-header">
           <h2>اینباندها</h2>
-          <button class="btn btn-primary" onclick="showAddInboundModal()">+ ایجاد اینبند جدید</button>
+          <button class="btn btn-primary btn-ripple" onclick="showAddInboundModal()">+ ایجاد اینبند جدید</button>
         </div>
         <div id="inbounds-list" class="list-container"></div>
       </div>
@@ -140,8 +157,8 @@
       <!-- Global Clients View -->
       <div id="view-clients" class="view hidden">
         <div class="view-header">
-          <h2>👥 کلاینت‌ها</h2>
-          <button class="btn btn-sm btn-secondary" onclick="loadAllClients()">🔄 بروزرسانی</button>
+          <h2>⬡ کلاینت‌ها</h2>
+          <button class="btn btn-sm btn-secondary btn-ripple" onclick="loadAllClients()">↻ بروزرسانی</button>
         </div>
         <div id="all-clients-list" class="list-container"></div>
       </div>
@@ -150,18 +167,18 @@
       <div id="view-inbound-detail" class="view hidden">
         <div class="view-header">
           <div class="header-back">
-            <button class="btn btn-secondary btn-sm" onclick="navigateTo('inbounds')">← بازگشت</button>
+            <button class="btn btn-secondary btn-sm btn-ripple" onclick="navigateTo('inbounds')">→ بازگشت</button>
             <h2 id="inbound-detail-title">جزئیات اینبند</h2>
           </div>
           <div class="header-actions">
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteInbound()">🗑 حذف اینبند</button>
+            <button class="btn btn-danger btn-sm btn-ripple" onclick="confirmDeleteInbound()">✕ حذف اینبند</button>
           </div>
         </div>
         <div id="inbound-info-box"></div>
         <div class="card">
           <div class="card-header">
             <h3>کلاینت‌ها</h3>
-            <button class="btn btn-primary btn-sm" onclick="showAddClientModal()">+ اضافه کردن کلاینت</button>
+            <button class="btn btn-primary btn-sm btn-ripple" onclick="showAddClientModal()">+ اضافه کردن کلاینت</button>
           </div>
           <div id="clients-list" class="list-container"></div>
         </div>
@@ -170,7 +187,7 @@
       <!-- Settings View -->
       <div id="view-settings" class="view hidden">
         <div class="view-header">
-          <h2>تنظیمات</h2>
+          <h2>⚙ تنظیمات</h2>
         </div>
         <div class="settings-grid">
           <!-- Panel Info -->
@@ -183,7 +200,10 @@
                 <label>آدرس فعلی پنل</label>
                 <div class="input-group">
                   <input type="text" id="setting-panel-url" readonly class="input-readonly">
-                  <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-panel-url')">کپی</button>
+                  <button class="btn btn-secondary btn-sm btn-ripple copy-btn" onclick="copyToClipboard('setting-panel-url');flashCopy(this)">
+                    <span class="btn-text">⧉</span>
+                    <span class="btn-check">✓</span>
+                  </button>
                 </div>
               </div>
               <div class="form-group">
@@ -192,8 +212,8 @@
                   <input type="text" id="setting-panel-domain" placeholder="panel.example.com">
                 </div>
               </div>
-              <p class="text-muted" style="font-size:12px;margin-top:8px;">دامنه پنل برای تولید لینک اشتراک استفاده می‌شود. اگر خالی باشد، از آدرس فعلی استفاده می‌شود.</p>
-              <button class="btn btn-primary btn-sm" onclick="savePanelDomain()" style="margin-top:8px;">💾 ذخیره دامنه</button>
+              <p class="text-muted" style="margin-top:8px;">دامنه پنل برای تولید لینک اشتراک استفاده می‌شود. اگر خالی باشد، از آدرس فعلی استفاده می‌شود.</p>
+              <button class="btn btn-primary btn-sm btn-ripple" onclick="savePanelDomain()" style="margin-top:12px;">💾 ذخیره دامنه</button>
             </div>
           </div>
 
@@ -207,14 +227,20 @@
                 <label>مسیر WebSocket</label>
                 <div class="input-group">
                   <input type="text" id="setting-ws-path" readonly class="input-readonly">
-                  <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-ws-path')">کپی</button>
+                  <button class="btn btn-secondary btn-sm btn-ripple copy-btn" onclick="copyToClipboard('setting-ws-path');flashCopy(this)">
+                    <span class="btn-text">⧉</span>
+                    <span class="btn-check">✓</span>
+                  </button>
                 </div>
               </div>
               <div class="form-group">
                 <label>آدرس WebSocket</label>
                 <div class="input-group">
                   <input type="text" id="setting-ws-url" readonly class="input-readonly">
-                  <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-ws-url')">کپی</button>
+                  <button class="btn btn-secondary btn-sm btn-ripple copy-btn" onclick="copyToClipboard('setting-ws-url');flashCopy(this)">
+                    <span class="btn-text">⧉</span>
+                    <span class="btn-check">✓</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -227,7 +253,7 @@
             </div>
             <div class="card-body">
               <p class="text-muted">بازنشانی تمام آمار ترافیک کلاینت‌ها</p>
-              <button class="btn btn-danger" onclick="confirmResetStats()">🔄 بازنشانی آمار</button>
+              <button class="btn btn-danger btn-ripple" onclick="confirmResetStats()" style="margin-top:12px;">↻ بازنشانی آمار</button>
             </div>
           </div>
         </div>
@@ -240,7 +266,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3>ایجاد اینبند جدید</h3>
-        <button class="modal-close" onclick="closeAddInboundModal()">&times;</button>
+        <button class="modal-close" onclick="closeAddInboundModal()">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -257,7 +283,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeAddInboundModal()">انصراف</button>
-        <button class="btn btn-primary" onclick="createInbound()">ایجاد</button>
+        <button class="btn btn-primary btn-ripple" onclick="createInbound()">ایجاد</button>
       </div>
     </div>
   </div>
@@ -267,7 +293,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3>اضافه کردن کلاینت</h3>
-        <button class="modal-close" onclick="closeAddClientModal()">&times;</button>
+        <button class="modal-close" onclick="closeAddClientModal()">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-group">
@@ -285,7 +311,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeAddClientModal()">انصراف</button>
-        <button class="btn btn-primary" onclick="createClient()">اضافه کردن</button>
+        <button class="btn btn-primary btn-ripple" onclick="createClient()">اضافه کردن</button>
       </div>
     </div>
   </div>
@@ -295,7 +321,7 @@
     <div class="modal">
       <div class="modal-header">
         <h3>ویرایش کلاینت</h3>
-        <button class="modal-close" onclick="closeEditClientModal()">&times;</button>
+        <button class="modal-close" onclick="closeEditClientModal()">✕</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="edit-client-id">
@@ -319,7 +345,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeEditClientModal()">انصراف</button>
-        <button class="btn btn-primary" onclick="updateClient()">ذخیره</button>
+        <button class="btn btn-primary btn-ripple" onclick="updateClient()">ذخیره</button>
       </div>
     </div>
   </div>
@@ -328,15 +354,17 @@
   <div id="qr-modal" class="modal-overlay hidden">
     <div class="modal modal-sm">
       <div class="modal-header">
-        <h3>کد QR</h3>
-        <button class="modal-close" onclick="closeQRModal()">&times;</button>
+        <h3>▣ کد QR</h3>
+        <button class="modal-close" onclick="closeQRModal()">✕</button>
       </div>
-      <div class="modal-body" style="text-align:center">
-        <img id="qr-image" src="" alt="QR Code" style="max-width:250px;border-radius:12px;">
-        <p id="qr-email" class="text-muted" style="margin-top:8px;"></p>
+      <div class="modal-body" style="text-align:center;">
+        <div class="qr-card">
+          <img id="qr-image" src="" alt="QR Code" style="max-width:220px;border-radius:8px;">
+        </div>
+        <p id="qr-email" class="text-muted" style="margin-top:12px;"></p>
       </div>
-      <div class="modal-footer" style="justify-content:center">
-        <button class="btn btn-secondary" onclick="closeQRModal()">بستن</button>
+      <div class="modal-footer" style="justify-content:center;">
+        <button class="btn btn-secondary btn-ripple" onclick="closeQRModal()">بستن</button>
       </div>
     </div>
   </div>

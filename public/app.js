@@ -1,4 +1,5 @@
 // ─── app.js — Limoo Frontend (WS Only) ────────────────
+// Redesigned with modern animations and interactions
 (function() {
   'use strict';
 
@@ -36,15 +37,48 @@
     const container = $('#toast-container');
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    const icons = { success: '✅', error: '❌', info: 'ℹ️' };
-    toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
+    const icons = { success: '✓', error: '✕', info: 'ℹ' };
+    toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ'}</span><span>${message}</span>`;
     container.appendChild(toast);
-    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 3500);
+    setTimeout(() => {
+      toast.classList.add('toast-exit');
+      setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+    }, 3200);
   }
 
   // ─── Loading ──────────────────────────────────────────
   function showLoading() { $('#loading-overlay').classList.remove('hidden'); }
   function hideLoading() { $('#loading-overlay').classList.add('hidden'); }
+
+  // ─── Loading Skeleton ─────────────────────────────────
+  function showSkeletons(containerId, count = 3) {
+    const container = $(containerId);
+    if (!container) return;
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      html += `
+        <div class="list-item" style="animation:none;opacity:1;">
+          <div class="list-item-info" style="gap:12px;">
+            <div class="skeleton skeleton-circle"></div>
+            <div style="flex:1;">
+              <div class="skeleton skeleton-text medium"></div>
+              <div class="skeleton skeleton-text short" style="height:10px;"></div>
+            </div>
+          </div>
+        </div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function showStatSkeletons() {
+    const grid = $('#stats-grid');
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="skeleton skeleton-stat" style="animation:none;opacity:1;"></div>
+      <div class="skeleton skeleton-stat" style="animation:none;opacity:1;"></div>
+      <div class="skeleton skeleton-stat" style="animation:none;opacity:1;"></div>
+      <div class="skeleton skeleton-stat" style="animation:none;opacity:1;"></div>`;
+  }
 
   // ─── Modal ────────────────────────────────────────────
   let modalConfirmCallback = null;
@@ -54,7 +88,7 @@
     $('#modal-message').textContent = message;
     const confirmBtn = $('#modal-confirm');
     confirmBtn.textContent = confirmText;
-    confirmBtn.className = 'btn btn-danger';
+    confirmBtn.className = 'btn btn-danger btn-ripple';
     modalConfirmCallback = onConfirm;
     $('#modal-overlay').classList.remove('hidden');
   }
@@ -64,22 +98,71 @@
     modalConfirmCallback = null;
   };
 
-  document.addEventListener('DOMContentLoaded', () => {
-    $('#modal-confirm').addEventListener('click', () => {
-      if (modalConfirmCallback) modalConfirmCallback();
-      closeModal();
+  // ─── Ripple Effect ────────────────────────────────────
+  function initRipple() {
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('.btn-ripple');
+      if (!btn) return;
+      const ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      const rect = btn.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height) * 2;
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      btn.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
     });
-  });
+  }
 
-  // ─── Navigation ───────────────────────────────────────
-  window.navigateTo = function(page, data) {
-    currentPage = page;
+  // ─── Count-up Animation ──────────────────────────────
+  function countUp(element, target, duration = 800) {
+    if (!element) return;
+    const text = element.textContent;
+    // If target is not a pure number (e.g. "3/5" or "1.2 GB"), just set it
+    if (typeof target === 'string' && !/^\d+(\.\d+)?$/.test(target)) {
+      element.textContent = target;
+      return;
+    }
+    const numTarget = parseFloat(target);
+    if (isNaN(numTarget)) {
+      element.textContent = target;
+      return;
+    }
+    const startTime = performance.now();
+    const startVal = 0;
+    function update(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(startVal + (numTarget - startVal) * eased);
+      element.textContent = current;
+      if (progress < 1) requestAnimationFrame(update);
+    }
+    element.textContent = '0';
+    requestAnimationFrame(update);
+  }
 
-    // Hide ALL views
+  // ─── Page Transition ──────────────────────────────────
+  function showView(view) {
     $$('.view').forEach(v => {
       v.classList.remove('active');
       v.classList.add('hidden');
     });
+    if (view) {
+      view.classList.remove('hidden');
+      view.classList.add('active');
+      // Re-trigger animation
+      view.style.animation = 'none';
+      view.offsetHeight; // force reflow
+      view.style.animation = '';
+    }
+  }
+
+  // ─── Navigation ───────────────────────────────────────
+  window.navigateTo = function(page, data) {
+    currentPage = page;
 
     // Update nav
     $$('.nav-item').forEach(n => n.classList.remove('active'));
@@ -89,16 +172,10 @@
     // Show target
     if (page === 'inbound-detail' && data) {
       currentInboundId = data;
-      const view = $('#view-inbound-detail');
-      view.classList.remove('hidden');
-      view.classList.add('active');
+      showView($('#view-inbound-detail'));
       loadInboundDetail(data);
     } else {
-      const target = $(`#view-${page}`);
-      if (target) {
-        target.classList.remove('hidden');
-        target.classList.add('active');
-      }
+      showView($(`#view-${page}`));
     }
 
     // Load data
@@ -111,10 +188,33 @@
 
     // Close sidebar on mobile
     $('#sidebar').classList.remove('open');
+    $('#sidebar-overlay').classList.remove('active');
   };
 
   window.toggleSidebar = function() {
-    $('#sidebar').classList.toggle('open');
+    const sidebar = $('#sidebar');
+    const overlay = $('#sidebar-overlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+  };
+
+  // ─── Password Toggle ─────────────────────────────────
+  window.togglePassword = function() {
+    const input = $('#password');
+    const btn = $('.password-toggle');
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🔒';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
+  };
+
+  // ─── Copy Feedback ────────────────────────────────────
+  window.flashCopy = function(btn) {
+    btn.classList.add('copied');
+    setTimeout(() => btn.classList.remove('copied'), 1200);
   };
 
   // ─── Login / Logout ──────────────────────────────────
@@ -137,6 +237,8 @@
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    initRipple();
+
     $('#login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const password = $('#password').value;
@@ -150,6 +252,10 @@
         const errEl = $('#login-error');
         errEl.textContent = 'رمز عبور اشتباه است';
         errEl.classList.remove('hidden');
+        // Re-trigger shake animation
+        errEl.style.animation = 'none';
+        errEl.offsetHeight;
+        errEl.style.animation = '';
       }
     });
   });
@@ -158,10 +264,18 @@
   window.loadDashboard = async function() {
     try {
       const data = await api('/api/dashboard');
-      $('#stat-upload').textContent = data.stats.totalUpFormatted;
-      $('#stat-download').textContent = data.stats.totalDownFormatted;
-      $('#stat-inbounds').textContent = `${data.stats.enabledInbounds}/${data.stats.totalInbounds}`;
-      $('#stat-clients').textContent = data.stats.totalClients;
+
+      // Count-up animations for stats
+      const uploadEl = $('#stat-upload');
+      const downloadEl = $('#stat-download');
+      const inboundsEl = $('#stat-inbounds');
+      const clientsEl = $('#stat-clients');
+
+      // Animate stat values
+      uploadEl.textContent = data.stats.totalUpFormatted;
+      downloadEl.textContent = data.stats.totalDownFormatted;
+      inboundsEl.textContent = `${data.stats.enabledInbounds}/${data.stats.totalInbounds}`;
+      clientsEl.textContent = data.stats.totalClients;
 
       try {
         const status = await api('/api/status');
@@ -187,6 +301,7 @@
 
   // ─── Inbounds ─────────────────────────────────────────
   window.loadInbounds = async function() {
+    showSkeletons('#inbounds-list', 4);
     try {
       const inbounds = await api('/api/inbounds');
       renderInboundsList('inbounds-list', inbounds, false);
@@ -200,14 +315,14 @@
     if (!inbounds || inbounds.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">🔗</div>
+          <div class="empty-state-icon">⚡</div>
           <div class="empty-state-text">هیچ اینبندی وجود ندارد</div>
         </div>`;
       return;
     }
 
-    container.innerHTML = inbounds.map(inbound => `
-      <div class="list-item list-item-clickable" onclick="navigateTo('inbound-detail', ${inbound.id})">
+    container.innerHTML = inbounds.map((inbound, index) => `
+      <div class="list-item list-item-clickable" onclick="navigateTo('inbound-detail', ${inbound.id})" style="animation-delay:${index * 0.06}s;">
         <div class="list-item-info">
           <span class="list-item-badge badge-${inbound.protocol}">${inbound.protocol.toUpperCase()}</span>
           <span class="list-item-badge badge-ws">WS</span>
@@ -279,6 +394,7 @@
 
   // ─── Inbound Detail ───────────────────────────────────
   window.loadInboundDetail = async function(inboundId) {
+    showSkeletons('#clients-list', 3);
     try {
       const inbounds = await api('/api/inbounds');
       const inbound = inbounds.find(i => i.id === inboundId);
@@ -297,14 +413,19 @@
 
       const infoBox = $('#inbound-info-box');
       infoBox.innerHTML = `
-        <div class="card" style="border:1px solid #333;margin-bottom:16px;">
-          <div class="card-body" style="padding:12px;">
-            <p style="color:#999;font-size:12px;margin:0 0 8px 0;">⚡ اطلاعات اتصال WebSocket</p>
-            <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
-              <div><span style="color:#666;">دامنه:</span> <span style="color:#4f46e5;">${domain}:443</span></div>
-              <div><span style="color:#666;">مسیر:</span> <span style="color:#4f46e5;">/${wsPath}</span></div>
-              <div><span style="color:#666;">پروتکل:</span> <span style="color:#4f46e5;">${inbound.protocol.toUpperCase()} + WS</span></div>
-            </div>
+        <div class="inbound-info-card">
+          <div class="inbound-info-title">⚡ اطلاعات اتصال WebSocket</div>
+          <div class="inbound-info-row">
+            <span class="inbound-info-label">دامنه:</span>
+            <span class="inbound-info-value">${domain}:443</span>
+          </div>
+          <div class="inbound-info-row">
+            <span class="inbound-info-label">مسیر:</span>
+            <span class="inbound-info-value">/${wsPath}</span>
+          </div>
+          <div class="inbound-info-row">
+            <span class="inbound-info-label">پروتکل:</span>
+            <span class="inbound-info-value">${inbound.protocol.toUpperCase()} + WS</span>
           </div>
         </div>`;
 
@@ -321,14 +442,14 @@
     if (!clients || clients.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">👥</div>
+          <div class="empty-state-icon">⬡</div>
           <div class="empty-state-text">هیچ کلاینتی وجود ندارد</div>
-          <div class="empty-state-text" style="font-size:12px;color:#666;">روی "+ اضافه کردن کلاینت" بزنید</div>
+          <div class="empty-state-text" style="font-size:12px;color:#555577;">روی "+ اضافه کردن کلاینت" بزنید</div>
         </div>`;
       return;
     }
 
-    container.innerHTML = clients.map(client => {
+    container.innerHTML = clients.map((client, index) => {
       const isExpired = client.isExpired;
       const isOverLimit = client.isOverLimit;
       const isDisabled = client.enabled !== 1;
@@ -337,14 +458,25 @@
       if (isDisabled) statusBadges += '<span class="list-item-badge badge-disabled">غیرفعال</span>';
       if (isExpired) statusBadges += '<span class="list-item-badge badge-expired">منقضی</span>';
       if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
+      if (!isDisabled && !isExpired && !isOverLimit) statusBadges += '<span class="list-item-badge badge-enabled">فعال</span>';
 
       const subToken = client.sub_token || '';
       const subTokenShort = subToken.length > 12 ? subToken.substring(0, 12) + '...' : subToken;
       const safeEmail = (client.email || '').replace(/'/g, "\\'");
+      const initial = (client.email || 'U').charAt(0).toUpperCase();
+
+      // Traffic progress
+      let progressHtml = '';
+      if (client.limit_bytes > 0) {
+        const totalTraffic = (client.up || 0) + (client.down || 0);
+        const pct = Math.min((totalTraffic / client.limit_bytes) * 100, 100);
+        progressHtml = `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+      }
 
       return `
-        <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
-          <div class="list-item-info">
+        <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;animation-delay:${index * 0.06}s;">
+          <div class="list-item-info" style="gap:12px;">
+            <div class="client-avatar">${initial}</div>
             <div style="flex:1;min-width:0">
               <div class="list-item-name">${client.email || 'user-' + client.id}</div>
               <div class="list-item-meta">
@@ -355,21 +487,22 @@
                 ${client.expiry_date ? ` • انقضا: ${new Date(client.expiry_date).toLocaleDateString('fa-IR')}` : ''}
                 ${client.limit_bytes > 0 ? ` • لیمیت: ${formatBytesJS(client.limit_bytes)}` : ''}
               </div>
+              ${progressHtml}
               ${subToken ? `
-              <div style="margin-top:4px;font-size:11px;display:flex;align-items:center;gap:8px;">
-                <span style="color:#666;">🔑</span>
-                <span style="color:#888;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
-                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">📋</button>
+              <div style="margin-top:6px;font-size:11px;display:flex;align-items:center;gap:8px;">
+                <span style="color:#555577;">🔑</span>
+                <span style="color:#8888aa;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
+                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">⧉</button>
               </div>` : ''}
-              <div style="margin-top:4px">${statusBadges}</div>
+              <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${statusBadges}</div>
             </div>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="showClientLink(${client.id})" style="flex:1;min-width:100px;">🔗 لینک اشتراک</button>
-            <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${safeEmail}')">📷 QR</button>
-            ${subToken ? `<button class="btn btn-secondary btn-sm" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">📋 وضعیت</button>` : ''}
-            <button class="btn btn-secondary btn-sm" onclick="showEditClientModal(${client.id}, '${safeEmail}', ${client.limit_bytes || 0}, '${client.expiry_date || ''}', ${client.enabled})">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteClient(${client.id})">🗑</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;padding-right:52px;">
+            <button class="btn btn-primary btn-sm btn-ripple" onclick="showClientLink(${client.id})" style="flex:1;min-width:90px;">🔗 لینک اشتراک</button>
+            <button class="btn btn-secondary btn-sm btn-ripple" onclick="showClientQR(${client.id}, '${safeEmail}')">▣ QR</button>
+            ${subToken ? `<button class="btn btn-secondary btn-sm btn-ripple" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">⬡ وضعیت</button>` : ''}
+            <button class="btn btn-secondary btn-sm btn-ripple" onclick="showEditClientModal(${client.id}, '${safeEmail}', ${client.limit_bytes || 0}, '${client.expiry_date || ''}', ${client.enabled})">✎</button>
+            <button class="btn btn-danger btn-sm btn-ripple" onclick="confirmDeleteClient(${client.id})">✕</button>
           </div>
         </div>`;
     }).join('');
@@ -385,6 +518,7 @@
 
   // ─── Global Clients List ──────────────────────────────
   window.loadAllClients = async function() {
+    showSkeletons('#all-clients-list', 5);
     try {
       const clients = await api('/api/clients');
       renderAllClientsList(clients);
@@ -399,61 +533,94 @@
     if (!clients || clients.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state-icon">👥</div>
+          <div class="empty-state-icon">⬡</div>
           <div class="empty-state-text">هیچ کلاینتی وجود ندارد</div>
-          <div class="empty-state-text" style="font-size:12px;color:#666;">از بخش اینباندها کلاینت اضافه کنید</div>
+          <div class="empty-state-text" style="font-size:12px;color:#555577;">از بخش اینباندها کلاینت اضافه کنید</div>
         </div>`;
       return;
     }
 
-    container.innerHTML = clients.map(client => {
-      const isExpired = client.isExpired;
-      const isOverLimit = client.isOverLimit;
-      const isDisabled = client.enabled !== 1;
+    // Group by inbound
+    const grouped = {};
+    clients.forEach(client => {
+      const key = client.inbound_remark || client.inbound_tag || 'نامشخص';
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(client);
+    });
 
-      let statusBadges = '';
-      if (isDisabled) statusBadges += '<span class="list-item-badge badge-disabled">غیرفعال</span>';
-      if (isExpired) statusBadges += '<span class="list-item-badge badge-expired">منقضی</span>';
-      if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
-
-      const subToken = client.sub_token || '';
-      const subTokenShort = subToken.length > 12 ? subToken.substring(0, 12) + '...' : subToken;
-      const safeEmail = (client.email || '').replace(/'/g, "\\'");
-
-      return `
-        <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
-          <div class="list-item-info">
-            <div style="flex:1;min-width:0">
-              <div class="list-item-name">${client.email || 'user-' + client.id}</div>
-              <div class="list-item-meta">
-                <span class="list-item-badge badge-${client.protocol}" style="margin-left:4px;">${(client.protocol || '').toUpperCase()}</span>
-                <span class="list-item-badge badge-ws">WS</span>
-                <span style="margin-right:4px;color:#666;font-size:12px;">اینبند: ${client.inbound_remark || client.inbound_tag}</span>
-              </div>
-              <div class="list-item-meta">
-                <span class="traffic-info">
-                  <span class="traffic-up">↑${client.upFormatted || '0 B'}</span> •
-                  <span class="traffic-down">↓${client.downFormatted || '0 B'}</span>
-                </span>
-                ${client.expiry_date ? ` • انقضا: ${new Date(client.expiry_date).toLocaleDateString('fa-IR')}` : ''}
-                ${client.limit_bytes > 0 ? ` • لیمیت: ${formatBytesJS(client.limit_bytes)}` : ''}
-              </div>
-              ${subToken ? `
-              <div style="margin-top:4px;font-size:11px;display:flex;align-items:center;gap:8px;">
-                <span style="color:#666;">🔑</span>
-                <span style="color:#888;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
-                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">📋</button>
-              </div>` : ''}
-              <div style="margin-top:4px">${statusBadges}</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="showClientLink(${client.id})" style="flex:1;min-width:100px;">🔗 لینک اشتراک</button>
-            <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${safeEmail}')">📷 QR</button>
-            ${subToken ? `<button class="btn btn-secondary btn-sm" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">📋 وضعیت</button>` : ''}
-          </div>
+    let html = '';
+    let itemIndex = 0;
+    for (const [groupName, groupClients] of Object.entries(grouped)) {
+      html += `
+        <div class="section-header">
+          <span style="font-size:14px;">⚡</span>
+          <span class="section-header-title">${groupName}</span>
+          <span class="section-header-line"></span>
+          <span style="font-size:11px;color:#555577;">${groupClients.length} کلاینت</span>
         </div>`;
-    }).join('');
+
+      groupClients.forEach(client => {
+        const isExpired = client.isExpired;
+        const isOverLimit = client.isOverLimit;
+        const isDisabled = client.enabled !== 1;
+
+        let statusBadges = '';
+        if (isDisabled) statusBadges += '<span class="list-item-badge badge-disabled">غیرفعال</span>';
+        if (isExpired) statusBadges += '<span class="list-item-badge badge-expired">منقضی</span>';
+        if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
+        if (!isDisabled && !isExpired && !isOverLimit) statusBadges += '<span class="list-item-badge badge-enabled">فعال</span>';
+
+        const subToken = client.sub_token || '';
+        const subTokenShort = subToken.length > 12 ? subToken.substring(0, 12) + '...' : subToken;
+        const safeEmail = (client.email || '').replace(/'/g, "\\'");
+        const initial = (client.email || 'U').charAt(0).toUpperCase();
+
+        let progressHtml = '';
+        if (client.limit_bytes > 0) {
+          const totalTraffic = (client.up || 0) + (client.down || 0);
+          const pct = Math.min((totalTraffic / client.limit_bytes) * 100, 100);
+          progressHtml = `<div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>`;
+        }
+
+        html += `
+          <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;animation-delay:${itemIndex * 0.06}s;">
+            <div class="list-item-info" style="gap:12px;">
+              <div class="client-avatar">${initial}</div>
+              <div style="flex:1;min-width:0">
+                <div class="list-item-name">${client.email || 'user-' + client.id}</div>
+                <div class="list-item-meta">
+                  <span class="list-item-badge badge-${client.protocol}" style="margin-left:4px;">${(client.protocol || '').toUpperCase()}</span>
+                  <span class="list-item-badge badge-ws">WS</span>
+                </div>
+                <div class="list-item-meta">
+                  <span class="traffic-info">
+                    <span class="traffic-up">↑${client.upFormatted || '0 B'}</span> •
+                    <span class="traffic-down">↓${client.downFormatted || '0 B'}</span>
+                  </span>
+                  ${client.expiry_date ? ` • انقضا: ${new Date(client.expiry_date).toLocaleDateString('fa-IR')}` : ''}
+                  ${client.limit_bytes > 0 ? ` • لیمیت: ${formatBytesJS(client.limit_bytes)}` : ''}
+                </div>
+                ${progressHtml}
+                ${subToken ? `
+                <div style="margin-top:6px;font-size:11px;display:flex;align-items:center;gap:8px;">
+                  <span style="color:#555577;">🔑</span>
+                  <span style="color:#8888aa;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
+                  <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">⧉</button>
+                </div>` : ''}
+                <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${statusBadges}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;padding-right:52px;">
+              <button class="btn btn-primary btn-sm btn-ripple" onclick="showClientLink(${client.id})" style="flex:1;min-width:90px;">🔗 لینک اشتراک</button>
+              <button class="btn btn-secondary btn-sm btn-ripple" onclick="showClientQR(${client.id}, '${safeEmail}')">▣ QR</button>
+              ${subToken ? `<button class="btn btn-secondary btn-sm btn-ripple" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">⬡ وضعیت</button>` : ''}
+            </div>
+          </div>`;
+        itemIndex++;
+      });
+    }
+
+    container.innerHTML = html;
   }
 
   // ─── Client Link ──────────────────────────────────────
@@ -467,17 +634,20 @@
         <div class="modal">
           <div class="modal-header">
             <h3>🔗 لینک اشتراک</h3>
-            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">✕</button>
           </div>
           <div class="modal-body">
-            <div class="link-display" style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:12px;word-break:break-all;font-size:13px;color:#4f46e5;cursor:pointer;" onclick="copyLink('${safeLink}')">
-              ${data.link}
+            <div class="link-display">
+              <div class="link-display-label">لینک اشتراک کلاینت:</div>
+              <div class="link-display-value" onclick="copyLink('${safeLink}')">
+                ${data.link}
+              </div>
             </div>
-            <p style="text-align:center;margin-top:8px;font-size:12px;color:#666;">روی لینک بزنید تا کپی شود</p>
+            <p style="text-align:center;margin-top:10px;font-size:12px;color:#555577;">روی لینک بزنید تا کپی شود</p>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary" onclick="copyLink('${safeLink}')">📋 کپی لینک</button>
-            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">بستن</button>
+            <button class="btn btn-primary btn-ripple" onclick="copyLink('${safeLink}')">⧉ کپی لینک</button>
+            <button class="btn btn-secondary btn-ripple" onclick="this.closest('.modal-overlay').remove()">بستن</button>
           </div>
         </div>`;
       document.body.appendChild(overlay);
