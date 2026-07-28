@@ -104,7 +104,7 @@ function buildXrayConfig() {
 
     if (realityClients.length > 0) {
       // Use per-inbound port if set, otherwise global reality port
-      const inboundPort = realityInbounds[0].port || config.xrayRealityPort;
+      const inboundPort = parseInt(realityInbounds[0].port, 10) || config.xrayRealityPort;
 
       // Determine serverNames: use "*" (catch-all) if host is empty
       const inboundHost = realityInbounds[0].host || '';
