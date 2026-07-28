@@ -1312,6 +1312,29 @@ input[type="checkbox"] {
   background: rgba(255,255,255,0.06);
 }
 
+/* ═══ CLIENT ACTIONS ROW ═══════════════════════════════ */
+.client-actions-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-right: 52px;
+}
+
+/* ═══ TEXT OVERFLOW UTILITIES ══════════════════════════ */
+.list-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.list-item-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 /* ═══ MOBILE RESPONSIVE ════════════════════════════════ */
 @media (max-width: 1024px) {
   .stats-grid {
@@ -1320,32 +1343,57 @@ input[type="checkbox"] {
 }
 
 @media (max-width: 768px) {
+  /* ── Sidebar: slide from right, hidden by default ── */
   .sidebar {
-    transform: translateX(-100%);
+    transform: translateX(100%);
+    z-index: 200;
   }
 
   .sidebar.open {
     transform: translateX(0);
+    box-shadow: -4px 0 24px rgba(0,0,0,0.5);
   }
 
   .sidebar-toggle {
     display: block;
   }
 
+  /* ── Main content: no sidebar offset ── */
   .main-content {
     margin-right: 0;
-    padding: 20px 16px;
+    padding: 16px 14px;
   }
 
+  /* ── Stats grid: 2x2 on mobile ── */
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
   }
 
+  .stat-card {
+    padding: 14px 10px;
+  }
+
+  .stat-value {
+    font-size: 16px;
+  }
+
+  .stat-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  /* ── Settings grid: single column ── */
   .settings-grid {
     grid-template-columns: 1fr;
   }
 
+  /* ── View headers ── */
   .view-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1355,55 +1403,153 @@ input[type="checkbox"] {
     font-size: 20px;
   }
 
+  .header-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  /* ── List items: stack on mobile ── */
   .list-item {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+    padding: 14px 14px;
+  }
+
+  .list-item-info {
+    gap: 10px;
   }
 
   .list-item-actions {
     width: 100%;
-    justify-content: flex-end;
+    justify-content: flex-start;
     flex-wrap: wrap;
+    gap: 6px;
   }
 
+  .list-item-actions .btn {
+    min-height: 40px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* ── Buttons: full-width easy to tap ── */
+  .btn {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+
+  /* ── Modals: full-width with padding ── */
+  .modal-overlay {
+    padding: 12px;
+    align-items: flex-end;
+  }
+
+  .modal {
+    margin: 0;
+    border-radius: 20px 20px 16px 16px;
+    max-width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-footer {
+    padding: 14px 20px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .modal-footer .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .modal-close {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  /* ── Toast: full width ── */
   #toast-container {
     left: 12px;
     right: 12px;
+    top: 60px;
   }
 
   .toast {
     max-width: 100%;
-  }
-
-  .modal {
-    margin: 12px;
-    border-radius: 16px;
-  }
-
-  .stat-card {
-    padding: 16px 12px;
-  }
-
-  .stat-value {
-    font-size: 18px;
-  }
-
-  .stat-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  html {
     font-size: 13px;
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+  /* ── Input fields: larger for touch ── */
+  input[type="text"],
+  input[type="password"],
+  input[type="number"],
+  input[type="date"],
+  select {
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 16px; /* prevents iOS zoom */
   }
 
+  /* ── Text truncation ── */
+  .list-item-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .list-item-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Client action buttons row ── */
+  .client-actions-row {
+    padding-right: 0 !important;
+    gap: 6px;
+  }
+
+  .client-actions-row .btn {
+    min-height: 42px;
+    flex: 1 1 auto;
+    font-size: 12px;
+  }
+
+  /* ── Password toggle touch target ── */
+  .password-toggle {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  /* ── Link display in modals ── */
+  .link-display-value {
+    font-size: 11px;
+    padding: 10px;
+    min-height: 44px;
+  }
+
+  /* ── Inbound info box ── */
+  .inbound-info-card {
+    padding: 14px 16px;
+  }
+
+  /* ── Login page ── */
   .login-card {
     padding: 36px 24px;
     border-radius: 20px;
@@ -1415,6 +1561,137 @@ input[type="checkbox"] {
 
   .login-title {
     font-size: 26px;
+  }
+
+  .btn-gradient {
+    padding: 16px 24px;
+    font-size: 16px;
+    min-height: 52px;
+  }
+
+  /* ── Sidebar overlay active state ── */
+  .sidebar-overlay.active {
+    display: block;
+    animation: fadeIn 0.2s ease;
+    z-index: 150;
+  }
+
+  /* ── Client link container ── */
+  .client-link-container {
+    font-size: 11px;
+    padding: 10px;
+  }
+
+  /* ── Copy button ── */
+  .copy-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* ── Section headers ── */
+  .section-header {
+    padding: 10px 12px;
+  }
+
+  /* ── Card padding ── */
+  .card-header {
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .card-body {
+    padding: 16px;
+  }
+
+  /* ── QR modal ── */
+  .modal-sm {
+    max-width: 100%;
+  }
+
+  .qr-card img {
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  html {
+    font-size: 13px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px 8px;
+    border-radius: 12px;
+  }
+
+  .stat-value {
+    font-size: 15px;
+  }
+
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+
+  .login-card {
+    padding: 30px 20px;
+    border-radius: 18px;
+  }
+
+  .login-logo {
+    font-size: 48px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+
+  .login-subtitle {
+    margin-bottom: 28px;
+  }
+
+  .view-header h2 {
+    font-size: 18px;
+  }
+
+  .list-item {
+    padding: 12px;
+  }
+
+  .client-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  /* ── Touch: bigger interactive elements ── */
+  .modal-footer .btn {
+    min-height: 48px;
+    font-size: 14px;
+  }
+
+  /* ── Settings card ── */
+  .settings-grid .card-body {
+    padding: 14px;
+  }
+
+  /* ── Badge sizing ── */
+  .list-item-badge {
+    padding: 3px 8px;
+    font-size: 9px;
+  }
+
+  .btn-secondary.btn-sm {
+    padding: 6px 10px;
+    font-size: 11px;
   }
 }
 
@@ -1449,8 +1726,8 @@ input[type="checkbox"] {
   color: var(--text-secondary);
   font-size: 20px;
   cursor: pointer;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 10px;
   display: flex;
   align-items: center;

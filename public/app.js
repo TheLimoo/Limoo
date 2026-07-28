@@ -497,7 +497,7 @@
               <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${statusBadges}</div>
             </div>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;padding-right:52px;">
+          <div class="client-actions-row">
             <button class="btn btn-primary btn-sm btn-ripple" onclick="showClientLink(${client.id})" style="flex:1;min-width:90px;">🔗 لینک اشتراک</button>
             <button class="btn btn-secondary btn-sm btn-ripple" onclick="showClientQR(${client.id}, '${safeEmail}')">▣ QR</button>
             ${subToken ? `<button class="btn btn-secondary btn-sm btn-ripple" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">⬡ وضعیت</button>` : ''}
@@ -610,7 +610,7 @@
                 <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;">${statusBadges}</div>
               </div>
             </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;padding-right:52px;">
+            <div class="client-actions-row">
               <button class="btn btn-primary btn-sm btn-ripple" onclick="showClientLink(${client.id})" style="flex:1;min-width:90px;">🔗 لینک اشتراک</button>
               <button class="btn btn-secondary btn-sm btn-ripple" onclick="showClientQR(${client.id}, '${safeEmail}')">▣ QR</button>
               ${subToken ? `<button class="btn btn-secondary btn-sm btn-ripple" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">⬡ وضعیت</button>` : ''}

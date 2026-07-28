@@ -3,6 +3,11 @@ const { execSync } = require('child_process');
 const config = require('./config');
 const { stmts } = require('./db');
 
+// In-memory map to track previous xray cumulative values per client email.
+// This allows computing deltas across polls so traffic is accumulated, not overwritten.
+// On panel restart, the first poll sets the baseline from current xray values.
+const previousStats = {}; // { email: { up: number, down: number } }
+
 function queryStats() {
   try {
     const output = execSync(
@@ -46,12 +51,45 @@ function updateTrafficStats() {
     else trafficMap[email].down += value;
   }
 
-  for (const [email, traffic] of Object.entries(trafficMap)) {
-    const clients = stmts.db.prepare('SELECT id FROM clients WHERE email = ?').all(email);
-    for (const client of clients) {
-      stmts.upsertTraffic.run(client.id, traffic.up, traffic.down, now);
+  // For each client email, compute delta from previous xray values and accumulate into DB
+  for (const [email, current] of Object.entries(trafficMap)) {
+    const prev = previousStats[email];
+
+    if (prev) {
+      // Compute delta: only accumulate positive deltas (handles xray restart gracefully)
+      const deltaUp = Math.max(0, current.up - prev.up);
+      const deltaDown = Math.max(0, current.down - prev.down);
+
+      // Update in-memory baseline
+      previousStats[email] = { up: current.up, down: current.down };
+
+      // Skip if no new traffic
+      if (deltaUp === 0 && deltaDown === 0) continue;
+
+      // Accumulate delta into the DB
+      const clients = stmts.db.prepare('SELECT id FROM clients WHERE email = ?').all(email);
+      for (const client of clients) {
+        stmts.db.prepare(
+          'UPDATE traffic SET up = up + ?, down = down + ?, last_check = ? WHERE client_id = ?'
+        ).run(deltaUp, deltaDown, now, client.id);
+      }
+    } else {
+      // First time seeing this email — set the baseline (no delta yet, just record current values)
+      previousStats[email] = { up: current.up, down: current.down };
+
+      // Ensure traffic rows exist and are at least at the current xray level
+      // Use MAX to avoid overwriting higher accumulated values
+      const clients = stmts.db.prepare('SELECT id FROM clients WHERE email = ?').all(email);
+      for (const client of clients) {
+        stmts.db.prepare(
+          'UPDATE traffic SET up = MAX(up, ?), down = MAX(down, ?), last_check = ? WHERE client_id = ?'
+        ).run(current.up, current.down, now, client.id);
+      }
     }
   }
+
+  // For clients that have traffic rows but no current xray data (client removed from xray or name mismatch),
+  // leave their accumulated traffic as-is.
 
   return trafficMap;
 }
