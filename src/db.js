@@ -21,6 +21,9 @@ db.exec(`
     network_type TEXT NOT NULL CHECK(network_type IN ('ws','reality')),
     enabled INTEGER DEFAULT 1,
     remark TEXT DEFAULT '',
+    port INTEGER DEFAULT 0,
+    host TEXT DEFAULT '',
+    dest TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -33,6 +36,7 @@ db.exec(`
     limit_bytes INTEGER DEFAULT 0,
     expiry_date TEXT,
     enabled INTEGER DEFAULT 1,
+    sub_token TEXT UNIQUE,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (inbound_id) REFERENCES inbounds(id) ON DELETE CASCADE
   );
@@ -52,6 +56,28 @@ db.exec(`
   );
 `);
 
+// ─── Migration ──────────────────────────────────────────
+function migrateDb() {
+  const cols = db.prepare("PRAGMA table_info(inbounds)").all().map(c => c.name);
+  if (!cols.includes('port')) db.exec("ALTER TABLE inbounds ADD COLUMN port INTEGER DEFAULT 0");
+  if (!cols.includes('host')) db.exec("ALTER TABLE inbounds ADD COLUMN host TEXT DEFAULT ''");
+  if (!cols.includes('dest')) db.exec("ALTER TABLE inbounds ADD COLUMN dest TEXT DEFAULT ''");
+
+  const clientCols = db.prepare("PRAGMA table_info(clients)").all().map(c => c.name);
+  if (!clientCols.includes('sub_token')) {
+    db.exec("ALTER TABLE clients ADD COLUMN sub_token TEXT");
+    // Generate tokens for existing clients
+    const existing = db.prepare("SELECT id FROM clients WHERE sub_token IS NULL").all();
+    const update = db.prepare("UPDATE clients SET sub_token = ? WHERE id = ?");
+    for (const c of existing) {
+      update.run(crypto.randomBytes(16).toString('hex'), c.id);
+    }
+  }
+}
+
+// Run migrations on load
+migrateDb();
+
 // Helper: generate random hex string
 function randomHex(length) {
   return crypto.randomBytes(Math.ceil(length / 2)).toString('hex').slice(0, length);
@@ -60,6 +86,11 @@ function randomHex(length) {
 // Helper: generate UUID v4
 function generateUUID() {
   return crypto.randomUUID();
+}
+
+// Helper: generate subscription token
+function generateSubToken() {
+  return crypto.randomBytes(16).toString('hex');
 }
 
 // Helper: generate Xray x25519 key pair
@@ -115,6 +146,9 @@ function initDefaultSettings() {
   if (!getSetting.get('tcp_port')) {
     setSetting.run('tcp_port', '443');
   }
+  if (!getSetting.get('panel_domain')) {
+    setSetting.run('panel_domain', '');
+  }
 }
 
 // Initialize on load
@@ -131,10 +165,10 @@ const stmts = {
   getAllInbounds: db.prepare('SELECT * FROM inbounds ORDER BY created_at DESC'),
   getInboundById: db.prepare('SELECT * FROM inbounds WHERE id = ?'),
   createInbound: db.prepare(
-    'INSERT INTO inbounds (tag, protocol, network_type, remark) VALUES (?, ?, ?, ?)'
+    'INSERT INTO inbounds (tag, protocol, network_type, remark, port, host, dest) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ),
   updateInbound: db.prepare(
-    'UPDATE inbounds SET remark = ?, enabled = ? WHERE id = ?'
+    'UPDATE inbounds SET remark = ?, enabled = ?, port = ?, host = ?, dest = ? WHERE id = ?'
   ),
   deleteInbound: db.prepare('DELETE FROM inbounds WHERE id = ?'),
 
@@ -145,8 +179,11 @@ const stmts = {
   getClientById: db.prepare(
     'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.id = ?'
   ),
+  getClientByToken: db.prepare(
+    'SELECT c.*, t.up, t.down, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id WHERE c.sub_token = ?'
+  ),
   createClient: db.prepare(
-    'INSERT INTO clients (inbound_id, uuid, password, email, limit_bytes, expiry_date, enabled) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO clients (inbound_id, uuid, password, email, limit_bytes, expiry_date, enabled, sub_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   ),
   updateClient: db.prepare(
     'UPDATE clients SET email = ?, limit_bytes = ?, expiry_date = ?, enabled = ? WHERE id = ?'
@@ -168,6 +205,11 @@ const stmts = {
   countEnabledInbounds: db.prepare('SELECT COUNT(*) as count FROM inbounds WHERE enabled = 1'),
   countClients: db.prepare('SELECT COUNT(*) as count FROM clients'),
   totalTraffic: db.prepare('SELECT COALESCE(SUM(up), 0) as total_up, COALESCE(SUM(down), 0) as total_down FROM traffic'),
+
+  // All clients (global list)
+  getAllClients: db.prepare(
+    'SELECT c.*, t.up, t.down, t.last_check, i.tag as inbound_tag, i.protocol, i.network_type, i.remark as inbound_remark FROM clients c LEFT JOIN traffic t ON c.id = t.client_id JOIN inbounds i ON c.inbound_id = i.id ORDER BY c.created_at DESC'
+  ),
 };
 
 module.exports = {
@@ -175,6 +217,7 @@ module.exports = {
   stmts,
   generateUUID,
   randomHex,
+  generateSubToken,
   generateX25519Keys,
   initDefaultSettings
 };

@@ -137,6 +137,9 @@
       case 'inbounds':
         loadInbounds();
         break;
+      case 'clients':
+        loadAllClients();
+        break;
       case 'settings':
         loadSettings();
         break;
@@ -261,6 +264,7 @@
           <div>
             <div class="list-item-name">${inbound.remark || inbound.tag}</div>
             <div class="list-item-meta">${inbound.client_count || 0} کلاینت • ${inbound.tag}</div>
+            ${inbound.port ? `<div class="list-item-meta" style="font-size:11px;color:#666;">پورت: ${inbound.port}</div>` : ''}
           </div>
         </div>
         <div class="list-item-actions">
@@ -277,13 +281,17 @@
     $('#inbound-protocol').value = 'vless';
     $('#inbound-network-type').value = 'ws';
     $('#inbound-remark').value = '';
-    $('#reality-fields').classList.add('hidden');
+    $('#inbound-port').value = '0';
+    $('#inbound-host').value = '';
+    $('#inbound-dest').value = '';
+    $('#inbound-reality-fields').classList.add('hidden');
+    toggleInboundNetworkFields();
     $('#add-inbound-modal').classList.remove('hidden');
   };
 
-  window.toggleRealityFields = function() {
+  window.toggleInboundNetworkFields = function() {
     const isReality = $('#inbound-network-type').value === 'reality';
-    const fields = $('#reality-fields');
+    const fields = $('#inbound-reality-fields');
     if (isReality) {
       fields.classList.remove('hidden');
       loadRealityDefaults();
@@ -295,10 +303,12 @@
   window.loadRealityDefaults = async function() {
     try {
       const settings = await api('/api/settings');
-      $('#inbound-reality-dest').value = settings.reality_dest || 'www.microsoft.com:443';
-      $('#inbound-reality-sni').value = settings.reality_server_name || 'www.microsoft.com';
-      $('#inbound-reality-pbk').value = settings.reality_public_key || '';
-      $('#inbound-reality-sid').value = settings.reality_short_id || '';
+      const defaultsHtml = `
+        <div>Dest: ${settings.reality_dest || '...'}</div>
+        <div>SNI: ${settings.reality_server_name || '...'}</div>
+        <div>Short ID: ${settings.reality_short_id || '...'}</div>
+      `;
+      $('#inbound-reality-defaults').innerHTML = defaultsHtml;
     } catch (e) {}
   };
 
@@ -310,12 +320,15 @@
     const protocol = $('#inbound-protocol').value;
     const network_type = $('#inbound-network-type').value;
     const remark = $('#inbound-remark').value.trim();
+    const port = parseInt($('#inbound-port').value) || 0;
+    const host = $('#inbound-host').value.trim();
+    const dest = $('#inbound-dest').value.trim();
 
     try {
       showLoading();
       await api('/api/inbounds', {
         method: 'POST',
-        body: { protocol, network_type, remark }
+        body: { protocol, network_type, remark, port, host, dest }
       });
       hideLoading();
       closeAddInboundModal();
@@ -368,7 +381,7 @@
       const settings = await api('/api/settings');
       let infoHtml = '';
       if (inbound.network_type === 'ws') {
-        const domain = window.location.hostname;
+        const domain = settings.panel_domain || window.location.hostname;
         infoHtml = `
           <div class="card" style="border:1px solid #333;margin-bottom:16px;">
             <div class="card-body" style="padding:12px;">
@@ -381,13 +394,17 @@
             </div>
           </div>`;
       } else if (inbound.network_type === 'reality') {
+        const dest = inbound.dest || settings.reality_dest || '...';
+        const host = inbound.host || '(catch-all)';
+        const port = inbound.port || 443;
         infoHtml = `
           <div class="card" style="border:1px solid #333;margin-bottom:16px;">
             <div class="card-body" style="padding:12px;">
               <p style="color:#999;font-size:12px;margin:0 0 8px 0;">⚡ اطلاعات اتصال REALITY</p>
               <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
-                <div><span style="color:#666;">Dest:</span> <span style="color:#4f46e5;">${settings.reality_dest || '...'}</span></div>
-                <div><span style="color:#666;">SNI:</span> <span style="color:#4f46e5;">${settings.reality_server_name || '...'}</span></div>
+                <div><span style="color:#666;">Dest:</span> <span style="color:#4f46e5;">${dest}</span></div>
+                <div><span style="color:#666;">SNI Host:</span> <span style="color:#4f46e5;">${host}</span></div>
+                <div><span style="color:#666;">Port:</span> <span style="color:#4f46e5;">${port}</span></div>
                 <div><span style="color:#666;">Public Key:</span> <span style="color:#4f46e5;font-size:11px;">${settings.reality_public_key || '...'}</span></div>
                 <div><span style="color:#666;">Short ID:</span> <span style="color:#4f46e5;">${settings.reality_short_id || '...'}</span></div>
               </div>
@@ -437,6 +454,10 @@
       if (isExpired) statusBadges += '<span class="list-item-badge badge-expired">منقضی</span>';
       if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
 
+      // Sub token display (truncated)
+      const subToken = client.sub_token || '';
+      const subTokenShort = subToken.length > 12 ? subToken.substring(0, 12) + '...' : subToken;
+
       return `
         <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
           <div class="list-item-info">
@@ -450,12 +471,19 @@
                 ${client.expiry_date ? ` • انقضا: ${new Date(client.expiry_date).toLocaleDateString('fa-IR')}` : ''}
                 ${client.limit_bytes > 0 ? ` • لیمیت: ${formatBytesJS(client.limit_bytes)}` : ''}
               </div>
+              ${subToken ? `
+              <div style="margin-top:4px;font-size:11px;display:flex;align-items:center;gap:8px;">
+                <span style="color:#666;">🔑</span>
+                <span style="color:#888;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
+                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">📋</button>
+              </div>` : ''}
               <div style="margin-top:4px">${statusBadges}</div>
             </div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="showClientLink(${client.id})" style="flex:1;min-width:100px;">🔗 لینک اشتراک</button>
             <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}')">📷 QR</button>
+            ${subToken ? `<button class="btn btn-secondary btn-sm" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">📋 وضعیت</button>` : ''}
             <button class="btn btn-secondary btn-sm" onclick="showEditClientModal(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}', ${client.limit_bytes || 0}, '${client.expiry_date || ''}', ${client.enabled})">✏️</button>
             <button class="btn btn-danger btn-sm" onclick="confirmDeleteClient(${client.id})">🗑</button>
           </div>
@@ -470,6 +498,80 @@
     const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // ─── Global Clients List ──────────────────────────────
+  window.loadAllClients = async function() {
+    try {
+      const clients = await api('/api/clients');
+      renderAllClientsList(clients);
+    } catch (err) {
+      showToast('خطا در بارگذاری کلاینت‌ها: ' + err.message, 'error');
+    }
+  };
+
+  function renderAllClientsList(clients) {
+    const container = $('#all-clients-list');
+
+    if (!clients || clients.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">👥</div>
+          <div class="empty-state-text">هیچ کلاینتی وجود ندارد</div>
+          <div class="empty-state-text" style="font-size:12px;color:#666;">از بخش اینباندها کلاینت اضافه کنید</div>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = clients.map(client => {
+      const isExpired = client.isExpired;
+      const isOverLimit = client.isOverLimit;
+      const isDisabled = client.enabled !== 1;
+
+      let statusBadges = '';
+      if (isDisabled) statusBadges += '<span class="list-item-badge badge-disabled">غیرفعال</span>';
+      if (isExpired) statusBadges += '<span class="list-item-badge badge-expired">منقضی</span>';
+      if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
+
+      const subToken = client.sub_token || '';
+      const subTokenShort = subToken.length > 12 ? subToken.substring(0, 12) + '...' : subToken;
+
+      return `
+        <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <div class="list-item-info">
+            <div style="flex:1;min-width:0">
+              <div class="list-item-name">${client.email || 'user-' + client.id}</div>
+              <div class="list-item-meta">
+                <span class="list-item-badge badge-${client.protocol}" style="margin-left:4px;">${(client.protocol || '').toUpperCase()}</span>
+                <span class="list-item-badge badge-${client.network_type}">${(client.network_type || '').toUpperCase()}</span>
+                <span style="margin-right:4px;color:#666;font-size:12px;">اینبند: ${client.inbound_remark || client.inbound_tag}</span>
+              </div>
+              <div class="list-item-meta">
+                <span class="traffic-info">
+                  <span class="traffic-up">↑${client.upFormatted || '0 B'}</span> •
+                  <span class="traffic-down">↓${client.downFormatted || '0 B'}</span>
+                </span>
+                ${client.expiry_date ? ` • انقضا: ${new Date(client.expiry_date).toLocaleDateString('fa-IR')}` : ''}
+                ${client.limit_bytes > 0 ? ` • لیمیت: ${formatBytesJS(client.limit_bytes)}` : ''}
+              </div>
+              ${subToken ? `
+              <div style="margin-top:4px;font-size:11px;display:flex;align-items:center;gap:8px;">
+                <span style="color:#666;">🔑</span>
+                <span style="color:#888;font-family:monospace;direction:ltr;" title="${subToken}">${subTokenShort}</span>
+                <button class="btn btn-secondary btn-sm" style="padding:2px 6px;font-size:10px;" onclick="event.stopPropagation();copyToClipboard(this.parentElement.querySelector('span[title]'))" data-copy="${subToken}">📋</button>
+              </div>` : ''}
+              <div style="margin-top:4px">${statusBadges}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="showClientLink(${client.id})" style="flex:1;min-width:100px;">🔗 لینک اشتراک</button>
+            <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}')">📷 QR</button>
+            ${subToken ? `<button class="btn btn-secondary btn-sm" onclick="window.open('/subpage/${subToken}', '_blank')" title="صفحه وضعیت کلاینت">📋 وضعیت</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   // ─── Client Link ──────────────────────────────────────
@@ -592,7 +694,8 @@
       hideLoading();
       closeEditClientModal();
       showToast('کلاینت بروزرسانی شد', 'success');
-      loadInboundDetail(currentInboundId);
+      if (currentPage === 'inbound-detail') loadInboundDetail(currentInboundId);
+      else if (currentPage === 'clients') loadAllClients();
     } catch (err) {
       hideLoading();
       showToast('خطا در بروزرسانی کلاینت: ' + err.message, 'error');
@@ -615,7 +718,8 @@
       await api(`/api/clients/${clientId}`, { method: 'DELETE' });
       hideLoading();
       showToast('کلاینت حذف شد', 'success');
-      loadInboundDetail(currentInboundId);
+      if (currentPage === 'inbound-detail') loadInboundDetail(currentInboundId);
+      else if (currentPage === 'clients') loadAllClients();
     } catch (err) {
       hideLoading();
       showToast('خطا در حذف کلاینت: ' + err.message, 'error');
@@ -632,6 +736,10 @@
       const port = window.location.port || '443';
       $('#setting-ws-url').value = `wss://${domain}:${port}/${settings.ws_path || ''}`;
       $('#setting-panel-url').value = `${window.location.protocol}//${window.location.host}`;
+
+      // Panel domain for subscription links
+      const panelDomain = settings.panel_domain || window.location.hostname;
+      $('#setting-panel-domain').value = settings.panel_domain || '';
 
       $('#setting-reality-dest').value = settings.reality_dest || 'www.microsoft.com:443';
       $('#setting-reality-server-name').value = settings.reality_server_name || 'www.microsoft.com';
@@ -662,6 +770,23 @@
     } catch (err) {
       hideLoading();
       showToast('خطا در ذخیره تنظیمات: ' + err.message, 'error');
+    }
+  };
+
+  window.savePanelDomain = async function() {
+    try {
+      showLoading();
+      await api('/api/settings', {
+        method: 'PUT',
+        body: {
+          panel_domain: $('#setting-panel-domain').value.trim()
+        }
+      });
+      hideLoading();
+      showToast('دامنه پنل ذخیره شد', 'success');
+    } catch (err) {
+      hideLoading();
+      showToast('خطا در ذخیره دامنه: ' + err.message, 'error');
     }
   };
 
@@ -705,14 +830,27 @@
   };
 
   // ─── Clipboard ────────────────────────────────────────
-  window.copyToClipboard = function(inputId) {
-    const input = $(`#${inputId}`);
-    if (input) {
-      navigator.clipboard.writeText(input.value).then(() => {
+  window.copyToClipboard = function(inputOrId) {
+    let value;
+    if (typeof inputOrId === 'string') {
+      const input = $(`#${inputOrId}`);
+      value = input ? input.value : '';
+    } else if (inputOrId && inputOrId.getAttribute) {
+      value = inputOrId.getAttribute('data-copy') || inputOrId.title || inputOrId.value || inputOrId.textContent;
+    } else {
+      return;
+    }
+
+    if (value) {
+      navigator.clipboard.writeText(value).then(() => {
         showToast('کپی شد', 'success');
       }).catch(() => {
-        input.select();
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        document.body.appendChild(textarea);
+        textarea.select();
         document.execCommand('copy');
+        textarea.remove();
         showToast('کپی شد', 'success');
       });
     }

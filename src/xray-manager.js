@@ -37,7 +37,7 @@ function buildXrayConfig() {
   const wsInbounds = inbounds.filter(i => i.network_type === 'ws' && i.enabled === 1);
   const realityInbounds = inbounds.filter(i => i.network_type === 'reality' && i.enabled === 1);
 
-  // Build WS inbound
+  // Build WS inbound (all WS inbounds share port 10080 via Express proxy)
   if (wsInbounds.length > 0) {
     const wsClients = [];
     for (const inbound of wsInbounds) {
@@ -74,12 +74,15 @@ function buildXrayConfig() {
           network: 'ws',
           wsSettings: { path: `/${wsPath}` }
         },
-        sniffing: { enabled: true, destOverride: ['http', 'tls'] }
+        sniffing: {
+          enabled: true,
+          destOverride: ['http', 'tls', 'quic', 'bittorrent-hunter']
+        }
       });
     }
   }
 
-  // Build Reality inbound
+  // Build Reality inbound (per-inbound port, host, dest settings)
   if (realityInbounds.length > 0) {
     const realityClients = [];
     for (const inbound of realityInbounds) {
@@ -100,10 +103,20 @@ function buildXrayConfig() {
     }
 
     if (realityClients.length > 0) {
+      // Use per-inbound port if set, otherwise global reality port
+      const inboundPort = realityInbounds[0].port || config.xrayRealityPort;
+
+      // Determine serverNames: use "*" (catch-all) if host is empty
+      const inboundHost = realityInbounds[0].host || '';
+      const serverNames = (inboundHost === '' || inboundHost === '*') ? ['*'] : [inboundHost];
+
+      // Use per-inbound dest if set, otherwise global setting
+      const inboundDest = realityInbounds[0].dest || realityDest;
+
       xrayInbounds.push({
         tag: 'reality-inbound',
         listen: '127.0.0.1',
-        port: config.xrayRealityPort,
+        port: inboundPort,
         protocol: realityInbounds[0].protocol,
         settings: {
           clients: realityClients,
@@ -114,9 +127,9 @@ function buildXrayConfig() {
           security: 'reality',
           realitySettings: {
             show: false,
-            dest: realityDest,
+            dest: inboundDest,
             xver: 0,
-            serverNames: [realityServerName],
+            serverNames: serverNames,
             privateKey: realityPrivateKey,
             shortIds: [realityShortId],
             publicKey: realityPublicKey,
@@ -127,7 +140,10 @@ function buildXrayConfig() {
             path: '/'
           }
         },
-        sniffing: { enabled: true, destOverride: ['http', 'tls'] }
+        sniffing: {
+          enabled: true,
+          destOverride: ['http', 'tls', 'quic', 'bittorrent-hunter']
+        }
       });
     }
   }
@@ -161,7 +177,7 @@ function buildXrayConfig() {
       { protocol: 'blackhole', tag: 'blocked' }
     ],
     routing: {
-      domainStrategy: 'AsIs',
+      domainStrategy: 'IPIfNonMatch',
       rules: [
         { type: 'field', inboundTag: ['api'], outboundTag: 'api' }
       ]

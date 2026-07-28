@@ -70,6 +70,10 @@
           <span class="nav-icon">🔗</span>
           <span class="nav-text">اینباندها</span>
         </a>
+        <a href="#" class="nav-item" data-page="clients" onclick="navigateTo('clients')">
+          <span class="nav-icon">👥</span>
+          <span class="nav-text">کلاینت‌ها</span>
+        </a>
         <a href="#" class="nav-item" data-page="settings" onclick="navigateTo('settings')">
           <span class="nav-icon">⚙️</span>
           <span class="nav-text">تنظیمات</span>
@@ -133,6 +137,15 @@
         <div id="inbounds-list" class="list-container"></div>
       </div>
 
+      <!-- Global Clients View -->
+      <div id="view-clients" class="view hidden">
+        <div class="view-header">
+          <h2>👥 کلاینت‌ها</h2>
+          <button class="btn btn-sm btn-secondary" onclick="loadAllClients()">🔄 بروزرسانی</button>
+        </div>
+        <div id="all-clients-list" class="list-container"></div>
+      </div>
+
       <!-- Inbound Detail View -->
       <div id="view-inbound-detail" class="view hidden">
         <div class="view-header">
@@ -172,7 +185,14 @@
                   <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('setting-panel-url')">کپی</button>
                 </div>
               </div>
-              <p class="text-muted" style="font-size:12px;margin-top:8px;">آدرس پنل خودکار از درخواست شما تشخیص داده می‌شود. پورت پنل: <b>2053</b></p>
+              <div class="form-group">
+                <label for="setting-panel-domain">دامنه پنل (برای لینک اشتراک)</label>
+                <div class="input-group">
+                  <input type="text" id="setting-panel-domain" placeholder="panel.example.com">
+                </div>
+              </div>
+              <p class="text-muted" style="font-size:12px;margin-top:8px;">دامنه پنل برای تولید لینک اشتراک استفاده می‌شود. اگر خالی باشد، از آدرس فعلی استفاده می‌شود.</p>
+              <button class="btn btn-primary btn-sm" onclick="savePanelDomain()" style="margin-top:8px;">💾 ذخیره دامنه</button>
             </div>
           </div>
 
@@ -281,7 +301,7 @@
         </div>
         <div class="form-group">
           <label>نوع شبکه</label>
-          <select id="inbound-network-type" onchange="toggleRealityFields()">
+          <select id="inbound-network-type" onchange="toggleInboundNetworkFields()">
             <option value="ws">WebSocket (WS)</option>
             <option value="reality">REALITY</option>
           </select>
@@ -290,33 +310,28 @@
           <label>توضیحات</label>
           <input type="text" id="inbound-remark" placeholder="نام اختیاری">
         </div>
-        <!-- Reality-specific fields (shown when REALITY selected) -->
-        <div id="reality-fields" class="hidden">
+        <!-- Port field -->
+        <div class="form-group">
+          <label for="inbound-port">پورت (0 = پیش‌فرض)</label>
+          <input type="number" id="inbound-port" placeholder="0 = پیش‌فرض (443 برای Reality, 10080 برای WS)" value="0">
+        </div>
+        <!-- Reality-specific fields -->
+        <div id="inbound-reality-fields" class="hidden">
           <hr style="border-color:#333;margin:12px 0;">
-          <p style="color:#999;font-size:12px;margin-bottom:8px;">تنظیمات Reality (از تنظیمات جهانی خوانده می‌شود)</p>
+          <p style="color:#999;font-size:12px;margin-bottom:8px;">تنظیمات اختصاصی Reality</p>
           <div class="form-group">
-            <label>Dest (SNI Target)</label>
-            <input type="text" id="inbound-reality-dest" placeholder="www.microsoft.com:443">
+            <label for="inbound-host">SNI Host</label>
+            <input type="text" id="inbound-host" placeholder="خالی = همه دامنه‌ها (catch-all)">
           </div>
           <div class="form-group">
-            <label>Server Name (SNI)</label>
-            <input type="text" id="inbound-reality-sni" placeholder="www.microsoft.com">
+            <label for="inbound-dest">Dest (مقصد واقعی)</label>
+            <input type="text" id="inbound-dest" placeholder="خالی = از تنظیمات جهانی (مثلاً www.microsoft.com:443)">
           </div>
-          <div class="form-group">
-            <label>Public Key</label>
-            <div class="input-group">
-              <input type="text" id="inbound-reality-pbk" readonly class="input-readonly" placeholder="ابتدا کلید بسازید">
-              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('inbound-reality-pbk')">کپی</button>
-            </div>
+          <!-- Display global settings (read-only) -->
+          <div style="background:#0a0a0a;border:1px solid #222;border-radius:8px;padding:10px;margin-top:8px;">
+            <p style="color:#666;font-size:11px;margin-bottom:6px;">تنظیمات جهانی Reality:</p>
+            <div style="font-size:12px;color:#888;" id="inbound-reality-defaults">بارگذاری...</div>
           </div>
-          <div class="form-group">
-            <label>Short ID</label>
-            <div class="input-group">
-              <input type="text" id="inbound-reality-sid" readonly class="input-readonly">
-              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('inbound-reality-sid')">کپی</button>
-            </div>
-          </div>
-          <button class="btn btn-secondary btn-sm" onclick="loadRealityDefaults()" style="margin-bottom:8px;">🔄 بارگذاری تنظیمات</button>
         </div>
       </div>
       <div class="modal-footer">
