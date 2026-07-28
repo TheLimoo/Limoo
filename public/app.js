@@ -146,7 +146,6 @@
   window.showLogin = function() {
     $('#login-page').classList.remove('hidden');
     $('#app-page').classList.add('hidden');
-    $('#username').value = '';
     $('#password').value = '';
     $('#login-error').classList.add('hidden');
   };
@@ -168,21 +167,20 @@
   document.addEventListener('DOMContentLoaded', () => {
     $('#login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = $('#username').value.trim();
       const password = $('#password').value;
 
       try {
         showLoading();
         await api('/api/login', {
           method: 'POST',
-          body: { username, password }
+          body: { password }
         });
         hideLoading();
         showApp();
       } catch (err) {
         hideLoading();
         const errEl = $('#login-error');
-        errEl.textContent = 'نام کاربری یا رمز عبور اشتباه است';
+        errEl.textContent = 'رمز عبور اشتباه است';
         errEl.classList.remove('hidden');
       }
     });
@@ -560,7 +558,9 @@
 
       $('#setting-ws-path').value = settings.ws_path || '';
       const domain = window.location.hostname;
-      $('#setting-ws-url').value = `wss://${domain}:443/${settings.ws_path || ''}`;
+      const port = window.location.port || '443';
+      $('#setting-ws-url').value = `wss://${domain}:${port}/${settings.ws_path || ''}`;
+      $('#setting-panel-url').value = `${window.location.protocol}//${window.location.host}`;
 
       $('#setting-reality-dest').value = settings.reality_dest || 'www.microsoft.com:443';
       $('#setting-reality-server-name').value = settings.reality_server_name || 'www.microsoft.com';

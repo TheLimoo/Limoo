@@ -16,10 +16,9 @@ COPY . .
 RUN mkdir -p /data/limoo
 
 ENV NODE_ENV=production
-ENV PORT=3000
-ENV LIMOO_USER=admin
-ENV LIMOO_PASS=changeme
+ENV PORT=2053
+ENV LIMOO_PASS=Mohammad@23
 
-EXPOSE 3000
+EXPOSE 2053
 
 CMD ["node", "server.js"]

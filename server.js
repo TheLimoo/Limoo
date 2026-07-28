@@ -71,8 +71,7 @@ const PORT = config.port;
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[limoo] Server running on port ${PORT}`);
-  console.log(`[limoo] Domain: ${config.domain}`);
-  console.log(`[limoo] TCP Domain: ${config.tcpDomain}:${config.tcpPort}`);
+  console.log(`[limoo] Panel: http://0.0.0.0:${PORT}`);
 
   // Start xray-core
   try {

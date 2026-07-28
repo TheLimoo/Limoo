@@ -3,7 +3,6 @@
 **A single-user Xray-core proxy management panel for Railway deployment.**
 
 <p dir="rtl">
-
 لیمو یک پنل مدیریت پروکسی ساده و قدرتمند برای استقرار روی Railway است.
 با استفاده از Xray-core، از پروتکل‌های VLESS و Trojan با شبکه‌های WebSocket و REALITY پشتیبانی می‌کند.
 
@@ -17,11 +16,12 @@
 - ✅ **WebSocket (WS)** and **REALITY** network types
 - ✅ **Dark theme** with Persian RTL interface
 - ✅ **QR code** generation for client configs
-- ✅ **Traffic monitoring** per client
+- ✅ **Traffic monitoring** per client (Xray StatsService)
 - ✅ **Data limit & expiry** per client
 - ✅ **Auto-config generation** from database state
 - ✅ **Persistent storage** via Railway volume
-- ✅ **One-click deployment** on Railway
+- ✅ **Password-only login** (no username needed)
+- ✅ **TCP domain/port configurable from panel** (no env vars needed)
 
 ## Architecture / معماری
 
@@ -35,9 +35,9 @@
            ▼                    ▼
 ┌──────────────────┐   ┌──────────────────┐
 │   Express.js     │   │  Xray Reality    │
-│   (Admin Panel)  │   │  (Port 8443)     │
+│   (Admin Panel)  │   │  (Port 443)      │
 │   + WS Proxy     │   │  VLESS/Trojan    │
-│   (Port $PORT)   │   │  + REALITY       │
+│   (Port 2053)    │   │  + XHTTP+REALITY │
 └────────┬─────────┘   └──────────────────┘
          │
     HTTP │ WS
@@ -62,13 +62,11 @@
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PORT` | `3000` | Express server port (set by Railway) |
-| `LIMOO_USER` | `admin` | Admin panel username |
-| `LIMOO_PASS` | `changeme` | Admin panel password |
-| `LIMOO_DOMAIN` | auto | Your Railway app domain (auto-detected) |
-| `LIMOO_TCP_DOMAIN` | `localhost` | Domain for Reality TCP proxy |
-| `LIMOO_TCP_PORT` | `443` | Port for Reality TCP proxy |
+| `PORT` | `2053` | Panel port (set by Railway, use 2053 for public address) |
+| `LIMOO_PASS` | `Mohammad@23` | Admin panel password |
 | `DATA_DIR` | `/data/limoo` | Persistent data directory |
+
+> ⚠️ **Only `LIMOO_PASS` needs to be set.** TCP domain/port and Reality settings are configured from the panel UI itself.
 
 ## Railway Setup / راه‌اندازی روی Railway
 
@@ -86,32 +84,37 @@
    - Mount Path: `/data`
    - This stores the database and Xray config
 
-### 3. TCP Proxy / پروکسی TCP (for REALITY)
+### 3. Port & Domain / پورت و دامنه
 
 1. Go to **Settings** → **Networking**
-2. Enable **TCP Proxy** for port `8443`
-3. Railway will assign a public TCP endpoint
-4. Set `LIMOO_TCP_DOMAIN` and `LIMOO_TCP_PORT` env vars accordingly
+2. Set the port to **2053** (this becomes your panel's public port)
+3. Railway will assign a public HTTPS domain
 
-### 4. Environment Variables / متغیرها
+### 4. TCP Proxy / پروکسی TCP (for REALITY)
+
+1. Go to **Settings** → **Networking**
+2. Enable **TCP Proxy** for port **443**
+3. Railway will assign a public TCP endpoint
+4. **From the panel UI** (Settings → TCP Proxy), enter the TCP domain Railway gave you
+
+### 5. Environment Variables / متغیرها
 
 Go to **Variables** tab and set:
 
 ```
-LIMOO_USER=admin
 LIMOO_PASS=your-secure-password
-LIMOO_TCP_DOMAIN=your-tcp-proxy-domain.up.railway.app
-LIMOO_TCP_PORT=443
 ```
 
-### 5. Access / دسترسی
+That's it! No other env vars needed.
+
+### 6. Access / دسترسی
 
 Once deployed, access the panel at:
 ```
-https://your-app.up.railway.app
+https://your-app.up.railway.app:2053
 ```
 
-Login with your `LIMOO_USER` / `LIMOO_PASS` credentials.
+Login with your password only.
 
 ## How It Works / نحوه کار
 
@@ -157,7 +160,7 @@ cd limoo
 npm install
 
 # Run / اجرا
-PORT=3000 LIMOO_USER=admin LIMOO_PASS=changeme node server.js
+PORT=2053 LIMOO_PASS=Mohammad@23 node server.js
 ```
 
 ## Tech Stack
@@ -165,7 +168,7 @@ PORT=3000 LIMOO_USER=admin LIMOO_PASS=changeme node server.js
 - **Backend**: Node.js + Express.js
 - **Database**: SQLite (better-sqlite3)
 - **Proxy Engine**: Xray-core
-- **Frontend**: Vanilla HTML/CSS/JS
+- **Frontend**: Vanilla HTML/CSS/JS (Dark theme, Persian RTL)
 - **QR Codes**: qrcode (server-side PNG generation)
 
 ## License

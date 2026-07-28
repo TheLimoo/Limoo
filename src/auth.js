@@ -51,9 +51,9 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// Verify credentials
-function verifyCredentials(username, password) {
-  return username === config.username && password === config.password;
+// Verify password only
+function verifyPassword(password) {
+  return password === config.password;
 }
 
 module.exports = {
@@ -61,5 +61,5 @@ module.exports = {
   validateSession,
   destroySession,
   requireAuth,
-  verifyCredentials
+  verifyPassword
 };

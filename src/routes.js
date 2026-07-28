@@ -3,7 +3,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const config = require('./config');
 const { stmts, generateUUID, randomHex } = require('./db');
-const { createSession, destroySession, requireAuth, verifyCredentials } = require('./auth');
+const { createSession, destroySession, requireAuth, verifyPassword } = require('./auth');
 const { reloadXray, getStatus } = require('./xray-manager');
 const { updateTrafficStats, getTrafficSummary, formatBytes } = require('./xray-stats');
 
@@ -11,12 +11,12 @@ const router = express.Router();
 
 // ─── Auth Routes ──────────────────────────────────────────
 router.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
+  const { password } = req.body;
+  if (!password) {
+    return res.status(400).json({ error: 'Password required' });
   }
-  if (!verifyCredentials(username, password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  if (!verifyPassword(password)) {
+    return res.status(401).json({ error: 'Invalid password' });
   }
   const token = createSession();
   res.cookie(config.cookieName, token, {
@@ -273,9 +273,9 @@ router.get('/api/clients/:id/link', (req, res) => {
     const realityPublicKey = stmts.getSetting.get('reality_public_key')?.value || '';
     const realityShortId = stmts.getSetting.get('reality_short_id')?.value || '00000000';
 
-    const domain = config.domain;
-    const tcpDomain = config.tcpDomain;
-    const tcpPort = config.tcpPort;
+    const domain = req.headers.host || 'localhost';
+    const tcpDomain = stmts.getSetting.get('tcp_domain')?.value || req.headers.host || 'localhost';
+    const tcpPort = parseInt(stmts.getSetting.get('tcp_port')?.value || '443', 10);
     const remark = client.inbound_remark || 'limoo';
     const clientEmail = client.email || `user-${client.id}`;
 
@@ -332,9 +332,9 @@ router.get('/api/clients/:id/qr', async (req, res) => {
     const realityPublicKey = stmts.getSetting.get('reality_public_key')?.value || '';
     const realityShortId = stmts.getSetting.get('reality_short_id')?.value || '00000000';
 
-    const domain = config.domain;
-    const tcpDomain = config.tcpDomain;
-    const tcpPort = config.tcpPort;
+    const domain = req.headers.host || 'localhost';
+    const tcpDomain = stmts.getSetting.get('tcp_domain')?.value || req.headers.host || 'localhost';
+    const tcpPort = parseInt(stmts.getSetting.get('tcp_port')?.value || '443', 10);
     const remark = client.inbound_remark || 'limoo';
     const clientEmail = client.email || `user-${client.id}`;
 

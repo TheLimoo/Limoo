@@ -109,6 +109,12 @@ function initDefaultSettings() {
     setSetting.run('reality_private_key', keys.privateKey);
     setSetting.run('reality_public_key', keys.publicKey);
   }
+  if (!getSetting.get('tcp_domain')) {
+    setSetting.run('tcp_domain', '');
+  }
+  if (!getSetting.get('tcp_port')) {
+    setSetting.run('tcp_port', '443');
+  }
 }
 
 // Initialize on load
