@@ -3,14 +3,26 @@ const { execSync } = require('child_process');
 const config = require('./config');
 const { stmts } = require('./db');
 
-// Query xray stats via API
+// Query xray stats via CLI (protobuf text format)
 function queryStats() {
   try {
     const output = execSync(
-      `xray api statsquery -server 127.0.0.1:${config.xrayStatsPort} -pattern "" -format=json`,
+      `xray api statsquery -server 127.0.0.1:${config.xrayStatsPort} -pattern ""`,
       { encoding: 'utf-8', timeout: 5000 }
     );
-    return JSON.parse(output);
+    // Parse protobuf text format:
+    // stat { name: "user>>>email>>>uplink" value: 12345 }
+    const stats = [];
+    const blocks = output.split('stat {');
+    for (const block of blocks) {
+      if (!block.includes('name:')) continue;
+      const nameMatch = block.match(/name:\s*"([^"]+)"/);
+      const valueMatch = block.match(/value:\s*(\d+)/);
+      if (nameMatch && valueMatch) {
+        stats.push({ name: nameMatch[1], value: valueMatch[1] });
+      }
+    }
+    return stats.length > 0 ? { stat: stats } : null;
   } catch (err) {
     console.error('[stats] Failed to query xray stats:', err.message);
     return null;

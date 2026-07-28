@@ -2,7 +2,7 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const config = require('./config');
-const { stmts, generateUUID, randomHex } = require('./db');
+const { db, stmts, generateUUID, randomHex } = require('./db');
 const { createSession, destroySession, requireAuth, verifyPassword } = require('./auth');
 const { reloadXray, getStatus } = require('./xray-manager');
 const { updateTrafficStats, getTrafficSummary, formatBytes } = require('./xray-stats');
@@ -72,7 +72,7 @@ router.get('/api/dashboard', (req, res) => {
       },
       inbounds: inbounds.map(i => ({
         ...i,
-        client_count: stmts.db.prepare(
+        client_count: db.prepare(
           'SELECT COUNT(*) as count FROM clients WHERE inbound_id = ?'
         ).get(i.id).count
       })),
@@ -89,7 +89,7 @@ router.get('/api/inbounds', (req, res) => {
     const inbounds = stmts.getAllInbounds.all();
     const result = inbounds.map(i => ({
       ...i,
-      client_count: stmts.db.prepare(
+      client_count: db.prepare(
         'SELECT COUNT(*) as count FROM clients WHERE inbound_id = ?'
       ).get(i.id).count
     }));
@@ -221,7 +221,7 @@ router.post('/api/inbounds/:id/clients', (req, res) => {
 router.put('/api/clients/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const client = stmts.db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
@@ -246,7 +246,7 @@ router.put('/api/clients/:id', (req, res) => {
 router.delete('/api/clients/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const client = stmts.db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
     if (!client) {
       return res.status(404).json({ error: 'Client not found' });
     }
