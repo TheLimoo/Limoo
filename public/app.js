@@ -104,7 +104,10 @@
     currentPage = page;
 
     // Hide all views
-    $$('.view').forEach(v => v.classList.remove('active'));
+    $$('.view').forEach(v => {
+      v.classList.remove('active');
+      v.classList.add('hidden');
+    });
 
     // Update nav
     $$('.nav-item').forEach(n => n.classList.remove('active'));
@@ -114,11 +117,16 @@
     // Show target view
     if (page === 'inbound-detail' && data) {
       currentInboundId = data;
-      $('#view-inbound-detail').classList.add('active');
+      const view = $('#view-inbound-detail');
+      view.classList.remove('hidden');
+      view.classList.add('active');
       loadInboundDetail(data);
     } else {
       const targetView = $(`#view-${page}`);
-      if (targetView) targetView.classList.add('active');
+      if (targetView) {
+        targetView.classList.remove('hidden');
+        targetView.classList.add('active');
+      }
     }
 
     // Load data
@@ -269,7 +277,29 @@
     $('#inbound-protocol').value = 'vless';
     $('#inbound-network-type').value = 'ws';
     $('#inbound-remark').value = '';
+    $('#reality-fields').classList.add('hidden');
     $('#add-inbound-modal').classList.remove('hidden');
+  };
+
+  window.toggleRealityFields = function() {
+    const isReality = $('#inbound-network-type').value === 'reality';
+    const fields = $('#reality-fields');
+    if (isReality) {
+      fields.classList.remove('hidden');
+      loadRealityDefaults();
+    } else {
+      fields.classList.add('hidden');
+    }
+  };
+
+  window.loadRealityDefaults = async function() {
+    try {
+      const settings = await api('/api/settings');
+      $('#inbound-reality-dest').value = settings.reality_dest || 'www.microsoft.com:443';
+      $('#inbound-reality-sni').value = settings.reality_server_name || 'www.microsoft.com';
+      $('#inbound-reality-pbk').value = settings.reality_public_key || '';
+      $('#inbound-reality-sid').value = settings.reality_short_id || '';
+    } catch (e) {}
   };
 
   window.closeAddInboundModal = function() {
@@ -334,6 +364,48 @@
 
       $('#inbound-detail-title').textContent = inbound.remark || inbound.tag;
 
+      // Show connection info
+      const settings = await api('/api/settings');
+      let infoHtml = '';
+      if (inbound.network_type === 'ws') {
+        const domain = window.location.hostname;
+        infoHtml = `
+          <div class="card" style="border:1px solid #333;margin-bottom:16px;">
+            <div class="card-body" style="padding:12px;">
+              <p style="color:#999;font-size:12px;margin:0 0 8px 0;">⚡ اطلاعات اتصال WebSocket</p>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <div><span style="color:#666;">دامنه:</span> <span style="color:#4f46e5;">${domain}:443</span></div>
+                <div><span style="color:#666;">مسیر:</span> <span style="color:#4f46e5;">/${settings.ws_path || '...'}</span></div>
+                <div><span style="color:#666;">پروتکل:</span> <span style="color:#4f46e5;">${inbound.protocol.toUpperCase()}</span></div>
+              </div>
+            </div>
+          </div>`;
+      } else if (inbound.network_type === 'reality') {
+        infoHtml = `
+          <div class="card" style="border:1px solid #333;margin-bottom:16px;">
+            <div class="card-body" style="padding:12px;">
+              <p style="color:#999;font-size:12px;margin:0 0 8px 0;">⚡ اطلاعات اتصال REALITY</p>
+              <div style="display:flex;flex-direction:column;gap:4px;font-size:13px;">
+                <div><span style="color:#666;">Dest:</span> <span style="color:#4f46e5;">${settings.reality_dest || '...'}</span></div>
+                <div><span style="color:#666;">SNI:</span> <span style="color:#4f46e5;">${settings.reality_server_name || '...'}</span></div>
+                <div><span style="color:#666;">Public Key:</span> <span style="color:#4f46e5;font-size:11px;">${settings.reality_public_key || '...'}</span></div>
+                <div><span style="color:#666;">Short ID:</span> <span style="color:#4f46e5;">${settings.reality_short_id || '...'}</span></div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // Insert info before clients list
+      const clientsCard = $('#clients-list').closest('.card');
+      const existingInfo = clientsCard.previousElementSibling;
+      if (existingInfo && existingInfo.id === 'inbound-info-box') existingInfo.remove();
+      if (infoHtml) {
+        const temp = document.createElement('div');
+        temp.id = 'inbound-info-box';
+        temp.innerHTML = infoHtml;
+        clientsCard.parentNode.insertBefore(temp, clientsCard);
+      }
+
       const clients = await api(`/api/inbounds/${inboundId}/clients`);
       renderClientsList(clients, inbound);
     } catch (err) {
@@ -349,6 +421,7 @@
         <div class="empty-state">
           <div class="empty-state-icon">👥</div>
           <div class="empty-state-text">هیچ کلاینتی وجود ندارد</div>
+          <div class="empty-state-text" style="font-size:12px;color:#666;">روی "+ اضافه کردن کلاینت" بزنید</div>
         </div>
       `;
       return;
@@ -358,7 +431,6 @@
       const isExpired = client.isExpired;
       const isOverLimit = client.isOverLimit;
       const isDisabled = client.enabled !== 1;
-      const hasIssue = isExpired || isOverLimit || isDisabled;
 
       let statusBadges = '';
       if (isDisabled) statusBadges += '<span class="list-item-badge badge-disabled">غیرفعال</span>';
@@ -366,7 +438,7 @@
       if (isOverLimit) statusBadges += '<span class="list-item-badge badge-expired">overflow</span>';
 
       return `
-        <div class="list-item">
+        <div class="list-item" style="flex-direction:column;align-items:stretch;gap:8px;">
           <div class="list-item-info">
             <div style="flex:1;min-width:0">
               <div class="list-item-name">${client.email || 'user-' + client.id}</div>
@@ -381,11 +453,11 @@
               <div style="margin-top:4px">${statusBadges}</div>
             </div>
           </div>
-          <div class="list-item-actions">
-            <button class="btn btn-secondary btn-sm" onclick="showClientLink(${client.id})" title="لینک اشتراک">🔗</button>
-            <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}')" title="QR Code">📷</button>
-            <button class="btn btn-secondary btn-sm" onclick="showEditClientModal(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}', ${client.limit_bytes || 0}, '${client.expiry_date || ''}', ${client.enabled})" title="ویرایش">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="confirmDeleteClient(${client.id})" title="حذف">🗑</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="showClientLink(${client.id})" style="flex:1;min-width:100px;">🔗 لینک اشتراک</button>
+            <button class="btn btn-secondary btn-sm" onclick="showClientQR(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}')">📷 QR</button>
+            <button class="btn btn-secondary btn-sm" onclick="showEditClientModal(${client.id}, '${(client.email || '').replace(/'/g, "\\'")}', ${client.limit_bytes || 0}, '${client.expiry_date || ''}', ${client.enabled})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteClient(${client.id})">🗑</button>
           </div>
         </div>
       `;
@@ -404,24 +476,23 @@
   window.showClientLink = async function(clientId) {
     try {
       const data = await api(`/api/clients/${clientId}/link`);
-      // Create a temporary modal to show the link
       const overlay = document.createElement('div');
       overlay.className = 'modal-overlay';
       overlay.innerHTML = `
         <div class="modal">
           <div class="modal-header">
-            <h3>لینک اشتراک</h3>
+            <h3>🔗 لینک اشتراک</h3>
             <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
           </div>
           <div class="modal-body">
-            <div class="link-display">
-              <div class="link-display-label">Subscription Link:</div>
-              <div class="link-display-value">${data.link}</div>
+            <div class="link-display" style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:12px;word-break:break-all;font-size:13px;color:#4f46e5;cursor:pointer;" onclick="copyLink('${data.link.replace(/'/g, "\\'")}')">
+              ${data.link}
             </div>
+            <p style="text-align:center;margin-top:8px;font-size:12px;color:#666;">روی لینک بزنید تا کپی شود</p>
           </div>
           <div class="modal-footer">
-            <button class="btn btn-primary btn-sm" onclick="copyLink('${data.link.replace(/'/g, "\\'")}')">📋 کپی لینک</button>
-            <button class="btn btn-secondary btn-sm" onclick="this.closest('.modal-overlay').remove()">بستن</button>
+            <button class="btn btn-primary" onclick="copyLink('${data.link.replace(/'/g, "\\'")}')">📋 کپی لینک</button>
+            <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">بستن</button>
           </div>
         </div>
       `;

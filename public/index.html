@@ -281,7 +281,7 @@
         </div>
         <div class="form-group">
           <label>نوع شبکه</label>
-          <select id="inbound-network-type">
+          <select id="inbound-network-type" onchange="toggleRealityFields()">
             <option value="ws">WebSocket (WS)</option>
             <option value="reality">REALITY</option>
           </select>
@@ -289,6 +289,34 @@
         <div class="form-group">
           <label>توضیحات</label>
           <input type="text" id="inbound-remark" placeholder="نام اختیاری">
+        </div>
+        <!-- Reality-specific fields (shown when REALITY selected) -->
+        <div id="reality-fields" class="hidden">
+          <hr style="border-color:#333;margin:12px 0;">
+          <p style="color:#999;font-size:12px;margin-bottom:8px;">تنظیمات Reality (از تنظیمات جهانی خوانده می‌شود)</p>
+          <div class="form-group">
+            <label>Dest (SNI Target)</label>
+            <input type="text" id="inbound-reality-dest" placeholder="www.microsoft.com:443">
+          </div>
+          <div class="form-group">
+            <label>Server Name (SNI)</label>
+            <input type="text" id="inbound-reality-sni" placeholder="www.microsoft.com">
+          </div>
+          <div class="form-group">
+            <label>Public Key</label>
+            <div class="input-group">
+              <input type="text" id="inbound-reality-pbk" readonly class="input-readonly" placeholder="ابتدا کلید بسازید">
+              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('inbound-reality-pbk')">کپی</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Short ID</label>
+            <div class="input-group">
+              <input type="text" id="inbound-reality-sid" readonly class="input-readonly">
+              <button class="btn btn-secondary btn-sm" onclick="copyToClipboard('inbound-reality-sid')">کپی</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadRealityDefaults()" style="margin-bottom:8px;">🔄 بارگذاری تنظیمات</button>
         </div>
       </div>
       <div class="modal-footer">
