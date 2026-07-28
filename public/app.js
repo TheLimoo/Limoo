@@ -285,7 +285,6 @@
     $('#inbound-host').value = '';
     $('#inbound-dest').value = '';
     $('#inbound-reality-fields').classList.add('hidden');
-    toggleInboundNetworkFields();
     $('#add-inbound-modal').classList.remove('hidden');
   };
 
@@ -294,9 +293,11 @@
     const fields = $('#inbound-reality-fields');
     if (isReality) {
       fields.classList.remove('hidden');
+      $('#inbound-port').value = '443';
       loadRealityDefaults();
     } else {
       fields.classList.add('hidden');
+      $('#inbound-port').value = '0';
     }
   };
 
