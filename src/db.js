@@ -24,6 +24,7 @@ db.exec(`
     port INTEGER DEFAULT 0,
     host TEXT DEFAULT '',
     dest TEXT DEFAULT '',
+    address TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now'))
   );
 
@@ -62,6 +63,7 @@ function migrateDb() {
   if (!cols.includes('port')) db.exec("ALTER TABLE inbounds ADD COLUMN port INTEGER DEFAULT 0");
   if (!cols.includes('host')) db.exec("ALTER TABLE inbounds ADD COLUMN host TEXT DEFAULT ''");
   if (!cols.includes('dest')) db.exec("ALTER TABLE inbounds ADD COLUMN dest TEXT DEFAULT ''");
+  if (!cols.includes('address')) db.exec("ALTER TABLE inbounds ADD COLUMN address TEXT DEFAULT ''");
 
   const clientCols = db.prepare("PRAGMA table_info(clients)").all().map(c => c.name);
   if (!clientCols.includes('sub_token')) {
@@ -165,10 +167,10 @@ const stmts = {
   getAllInbounds: db.prepare('SELECT * FROM inbounds ORDER BY created_at DESC'),
   getInboundById: db.prepare('SELECT * FROM inbounds WHERE id = ?'),
   createInbound: db.prepare(
-    'INSERT INTO inbounds (tag, protocol, network_type, remark, port, host, dest) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO inbounds (tag, protocol, network_type, remark, port, host, dest, address) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   ),
   updateInbound: db.prepare(
-    'UPDATE inbounds SET remark = ?, enabled = ?, port = ?, host = ?, dest = ? WHERE id = ?'
+    'UPDATE inbounds SET remark = ?, enabled = ?, port = ?, host = ?, dest = ?, address = ? WHERE id = ?'
   ),
   deleteInbound: db.prepare('DELETE FROM inbounds WHERE id = ?'),
 

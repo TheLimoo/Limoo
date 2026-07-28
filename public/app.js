@@ -284,6 +284,7 @@
     $('#inbound-port').value = '0';
     $('#inbound-host').value = '';
     $('#inbound-dest').value = '';
+    $('#inbound-address').value = '';
     $('#inbound-reality-fields').classList.add('hidden');
     $('#add-inbound-modal').classList.remove('hidden');
   };
@@ -324,12 +325,13 @@
     const port = parseInt($('#inbound-port').value) || 0;
     const host = $('#inbound-host').value.trim();
     const dest = $('#inbound-dest').value.trim();
+    const address = $('#inbound-address').value.trim();
 
     try {
       showLoading();
       await api('/api/inbounds', {
         method: 'POST',
-        body: { protocol, network_type, remark, port, host, dest }
+        body: { protocol, network_type, remark, port, host, dest, address }
       });
       hideLoading();
       closeAddInboundModal();
