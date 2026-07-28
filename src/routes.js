@@ -10,7 +10,7 @@ const { updateTrafficStats, getTrafficSummary, formatBytes } = require('./xray-s
 const router = express.Router();
 
 // ─── Helper: build vless/trojan links for a client ──────
-function buildClientLinks(client) {
+function buildClientLinks(client, requestHost) {
   const links = [];
 
   const wsPath = stmts.getSetting.get('ws_path')?.value || '0000000000000000';
@@ -18,8 +18,8 @@ function buildClientLinks(client) {
   const realityPublicKey = stmts.getSetting.get('reality_public_key')?.value || '';
   const realityShortId = stmts.getSetting.get('reality_short_id')?.value || '00000000';
 
-  // Use panel_domain setting if available, otherwise fallback
-  const panelDomain = stmts.getSetting.get('panel_domain')?.value || '';
+  // Use panel_domain setting if available, otherwise fallback to request host
+  const panelDomain = stmts.getSetting.get('panel_domain')?.value || requestHost || 'localhost';
   // For Reality: use per-inbound address if set, otherwise fallback to global
   const tcpDomain = client.inbound_address || stmts.getSetting.get('tcp_domain')?.value || panelDomain || 'localhost';
   const tcpPort = client.inbound_address_port || parseInt(stmts.getSetting.get('tcp_port')?.value || '443', 10);
@@ -30,7 +30,7 @@ function buildClientLinks(client) {
   const clientEmail = client.email || `user-${client.id}`;
 
   if (client.network_type === 'ws') {
-    const domain = panelDomain || 'localhost';
+    const domain = panelDomain;
     const params = new URLSearchParams({
       encryption: 'none',
       security: 'tls',
@@ -52,7 +52,9 @@ function buildClientLinks(client) {
       pbk: realityPublicKey,
       sid: realityShortId,
       type: 'xhttp',
-      path: '/'
+      mode: 'auto',
+      path: '/',
+      extra: '{"mode":"auto","xPaddingBytes":"100-1000"}'
     });
     links.push(`${protocol}://${identifier}@${tcpDomain}:${tcpPort}?${params.toString()}#${encodeURIComponent(`${remark}-${clientEmail}`)}`);
   }
@@ -196,7 +198,7 @@ router.get('/sub/:token', (req, res) => {
     if (!client) return res.status(404).send('Not found');
 
     // Build config links
-    const links = buildClientLinks(client);
+    const links = buildClientLinks(client, req.headers.host);
     const base64 = Buffer.from(links.join('\n')).toString('base64');
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="limoo-sub.txt"');
@@ -227,7 +229,7 @@ router.get('/api/public/client/:token/qr', async (req, res) => {
     ).get(req.params.token);
     if (!client) return res.status(404).json({ error: 'Client not found' });
 
-    const links = buildClientLinks(client);
+    const links = buildClientLinks(client, req.headers.host);
     if (links.length === 0) return res.status(404).json({ error: 'No link' });
 
     const qr = await QRCode.toBuffer(links[0], {
@@ -541,7 +543,7 @@ router.get('/api/clients/:id/link', (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    const links = buildClientLinks(client);
+    const links = buildClientLinks(client, req.headers.host);
     res.json({ link: links[0] || '' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -557,7 +559,7 @@ router.get('/api/clients/:id/qr', async (req, res) => {
       return res.status(404).json({ error: 'Client not found' });
     }
 
-    const links = buildClientLinks(client);
+    const links = buildClientLinks(client, req.headers.host);
     if (links.length === 0) return res.status(404).json({ error: 'No link' });
 
     const qr = await QRCode.toBuffer(links[0], {
