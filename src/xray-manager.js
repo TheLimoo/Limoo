@@ -136,7 +136,7 @@ function buildXrayConfig() {
     log: {
       loglevel: 'warning',
       access: '/dev/null',
-      error: '/dev/stderr'
+      error: '/dev/null'
     },
     stats: {},
     api: {
