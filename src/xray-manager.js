@@ -88,7 +88,7 @@ function buildXrayConfig() {
     ],
     routing: {
       domainStrategy: 'AsIs',
-      rules: [{ type: 'field', inboundTag: ['api'], outboundTag: 'api' }]
+      rules: []
     }
   };
 }

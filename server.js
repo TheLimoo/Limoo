@@ -18,18 +18,6 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(__dirname + '/public'));
 
-// ─── API Routes ───────────────────────────────────────
-app.use(routes);
-
-// SPA fallback
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api/')) {
-    res.sendFile(__dirname + '/public/index.html');
-  } else {
-    res.status(404).json({ error: 'Not found' });
-  }
-});
-
 // ─── WebSocket Proxy ──────────────────────────────────
 const wsProxy = httpProxy.createProxyServer({
   target: `http://127.0.0.1:${config.xrayWsPort}`,
@@ -37,15 +25,11 @@ const wsProxy = httpProxy.createProxyServer({
   changeOrigin: true
 });
 
-wsProxy.on('error', (err, req, res) => {
+wsProxy.on('error', (err) => {
   console.error('[ws-proxy] Error:', err.message);
-  if (res && res.writeHead) {
-    res.writeHead(502, { 'Content-Type': 'text/plain' });
-    res.end('Bad Gateway');
-  }
 });
 
-// Handle WebSocket upgrade
+// Handle WebSocket upgrade (before Express routes)
 server.on('upgrade', (req, socket, head) => {
   const { stmts } = require('./src/db');
   const wsPath = stmts.getSetting.get('ws_path')?.value;
@@ -56,7 +40,10 @@ server.on('upgrade', (req, socket, head) => {
   }
 });
 
-// Handle HTTP requests for WS path (xray WS also handles HTTP upgrades)
+// ─── API Routes ───────────────────────────────────────
+app.use(routes);
+
+// ─── WS path HTTP proxy (before SPA fallback) ────────
 app.use((req, res, next) => {
   const { stmts } = require('./src/db');
   const wsPath = stmts.getSetting.get('ws_path')?.value;
@@ -64,6 +51,15 @@ app.use((req, res, next) => {
     wsProxy.web(req, res);
   } else {
     next();
+  }
+});
+
+// ─── SPA fallback ─────────────────────────────────────
+app.get('*', (req, res) => {
+  if (!req.path.startsWith('/api/')) {
+    res.sendFile(__dirname + '/public/index.html');
+  } else {
+    res.status(404).json({ error: 'Not found' });
   }
 });
 
