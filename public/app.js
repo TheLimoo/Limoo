@@ -335,6 +335,7 @@
           <span class="list-item-badge ${inbound.enabled ? 'badge-enabled' : 'badge-disabled'}">
             ${inbound.enabled ? 'فعال' : 'غیرفعال'}
           </span>
+          <button class="btn btn-sm btn-danger inbound-action-btn" onclick="event.stopPropagation(); currentInboundId=${inbound.id}; confirmDeleteInbound();" title="حذف اینبند">✕</button>
         </div>
       </div>
     `).join('');

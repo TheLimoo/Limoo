@@ -5,6 +5,7 @@ const http = require('http');
 const httpProxy = require('http-proxy');
 const config = require('./src/config');
 const { startXray } = require('./src/xray-manager');
+const { updateTrafficStats } = require('./src/xray-stats');
 const routes = require('./src/routes');
 
 const app = express();
