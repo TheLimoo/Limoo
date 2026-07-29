@@ -163,6 +163,9 @@ const stmts = {
   createClient: db.prepare(
     'INSERT INTO clients (inbound_id, uuid, password, email, limit_bytes, expiry_date, enabled, sub_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   ),
+  createTraffic: db.prepare(
+    'INSERT OR IGNORE INTO traffic (client_id, up, down, last_check) VALUES (?, 0, 0, 0)'
+  ),
   updateClient: db.prepare(
     'UPDATE clients SET email = ?, limit_bytes = ?, expiry_date = ?, enabled = ? WHERE id = ?'
   ),

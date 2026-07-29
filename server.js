@@ -63,6 +63,29 @@ app.get('*', (req, res) => {
   }
 });
 
+// ─── Traffic stats polling ─────────────────────────────
+let trafficPollTimer = null;
+let lastTrafficPoll = 0;
+
+function startTrafficPolling() {
+  if (trafficPollTimer) return;
+  console.log('[traffic] Starting periodic polling (every 10s)');
+  // Initial poll
+  updateTrafficStats();
+  // Poll every 10 seconds
+  trafficPollTimer = setInterval(() => {
+    updateTrafficStats();
+  }, 10000);
+}
+
+function stopTrafficPolling() {
+  if (trafficPollTimer) {
+    clearInterval(trafficPollTimer);
+    trafficPollTimer = null;
+    console.log('[traffic] Stopped polling');
+  }
+}
+
 // ─── Start Server ─────────────────────────────────────
 const PORT = config.port;
 
@@ -70,6 +93,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[limoo] Server running on port ${PORT}`);
   try {
     startXray();
+    startTrafficPolling();
     console.log('[limoo] Xray-core started');
   } catch (err) {
     console.error('[limoo] Failed to start xray:', err.message);
@@ -79,6 +103,7 @@ server.listen(PORT, '0.0.0.0', () => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('[limoo] Shutting down...');
+  stopTrafficPolling();
   const { stopXray } = require('./src/xray-manager');
   stopXray();
   server.close(() => process.exit(0));
@@ -86,6 +111,7 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('[limoo] Interrupted, shutting down...');
+  stopTrafficPolling();
   const { stopXray } = require('./src/xray-manager');
   stopXray();
   server.close(() => process.exit(0));

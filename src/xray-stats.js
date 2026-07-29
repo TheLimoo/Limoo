@@ -39,7 +39,8 @@ function updateTrafficStats() {
   const trafficMap = {};
 
   for (const stat of stats.stat) {
-    const match = stat.name.match(/^user>>>([^>]+)>>>(uplink|downlink)$/);
+    // Match both formats: user>>>email>>>uplink and user>>>email>>>downlink
+    const match = stat.name.match(/^user>>>(.+?)>>>(uplink|downlink)$/);
     if (!match) continue;
 
     const email = match[1];

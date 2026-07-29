@@ -692,7 +692,7 @@ router.post('/api/inbounds/:id/clients', (req, res) => {
       enabled !== undefined ? (enabled ? 1 : 0) : 1, sub_token
     );
 
-    stmts.upsertTraffic.run(result.lastInsertRowid, 0, 0, 0);
+    stmts.createTraffic.run(result.lastInsertRowid);
     const client = stmts.getClientById.get(result.lastInsertRowid);
     reloadXray();
     res.json(client);
