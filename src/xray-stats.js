@@ -14,6 +14,8 @@ function queryStats() {
       `xray api statsquery -server 127.0.0.1:${config.xrayStatsPort} -pattern ""`,
       { encoding: 'utf-8', timeout: 5000 }
     );
+    // Debug: log raw output
+    console.log('[stats] Raw xray output:', output.substring(0, 500));
     const stats = [];
     const blocks = output.split('stat {');
     for (const block of blocks) {
@@ -24,6 +26,7 @@ function queryStats() {
         stats.push({ name: nameMatch[1], value: valueMatch[1] });
       }
     }
+    console.log('[stats] Parsed stats:', JSON.stringify(stats));
     return stats.length > 0 ? { stat: stats } : null;
   } catch (err) {
     console.error('[stats] Failed to query xray stats:', err.message);
@@ -52,6 +55,8 @@ function updateTrafficStats() {
     else trafficMap[email].down += value;
   }
 
+  console.log('[stats] Traffic map:', JSON.stringify(trafficMap));
+
   // For each client email, compute delta from previous xray values and accumulate into DB
   for (const [email, current] of Object.entries(trafficMap)) {
     const prev = previousStats[email];
@@ -66,6 +71,8 @@ function updateTrafficStats() {
 
       // Skip if no new traffic
       if (deltaUp === 0 && deltaDown === 0) continue;
+
+      console.log('[stats] Delta for', email, ':', { deltaUp, deltaDown });
 
       // Accumulate delta into the DB
       const clients = stmts.db.prepare('SELECT id FROM clients WHERE email = ?').all(email);
